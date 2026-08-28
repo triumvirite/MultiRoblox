@@ -17,10 +17,36 @@ public sealed class InstanceManager : IDisposable
     private readonly object _gate = new();
     private readonly Timer _poll;
 
+    /// <summary>Live <see cref="Process"/> handles we've hooked <see cref="Process.Exited"/> on, keyed by pid.</summary>
+    private readonly Dictionary<int, Process> _watched = new();
+
     public InstanceManager(ILogger<InstanceManager>? log = null)
     {
         _log = log;
-        _poll = new Timer(_ => SafePoll(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
+        // The poll is now just a safety net for the one case with no OS event: the client window
+        // hidden to the system tray while its process keeps running. Real exits fire Process.Exited.
+        _poll = new Timer(_ => SafePoll(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(4));
+    }
+
+    /// <summary>Subscribe to Process.Exited for a pid so we react the instant it dies (no poll lag).</summary>
+    private void Watch(int pid)
+    {
+        lock (_gate)
+        {
+            if (_watched.ContainsKey(pid)) return;
+            try
+            {
+                var p = Process.GetProcessById(pid);
+                p.EnableRaisingEvents = true;
+                p.Exited += (_, _) =>
+                {
+                    _log?.LogInformation("pid {Pid} exited", pid);
+                    SafePoll();   // re-evaluate every instance immediately
+                };
+                _watched[pid] = p;
+            }
+            catch { /* already gone */ }
+        }
     }
 
     public ReadOnlyObservableCollection<RobloxInstance> Instances => new(_instances);
@@ -38,7 +64,7 @@ public sealed class InstanceManager : IDisposable
             PlaceId = join.PlaceId,
             JobId = join.JobId,
         };
-        if (!process.HasExited) inst.ProcessIds.Add(process.Id);
+        if (!process.HasExited) { inst.ProcessIds.Add(process.Id); Watch(process.Id); }
 
         lock (_gate) _instances.Add(inst);
         _log?.LogInformation("Registered instance {Id} for {Account}", inst.Id, account.Username);
@@ -48,18 +74,7 @@ public sealed class InstanceManager : IDisposable
     /// <summary>The "Leave Game" action: kill this instance's process tree and mark it terminated.</summary>
     public void Terminate(RobloxInstance inst)
     {
-        AdoptMatchingProcesses(inst);
-
-        foreach (int pid in inst.ProcessIds.ToArray())
-            KillTree(pid);
-
-        // Sweep any straggler client whose command line still carries our tracker id.
-        foreach (var p in ProcessScanner.Scan())
-        {
-            if (p.CommandLine.Contains(inst.BrowserTrackerId.ToString()))
-                KillTree(p.Pid);
-        }
-
+        CleanUp(inst);
         inst.State = InstanceState.Terminated;
         InstanceChanged?.Invoke(this, inst);
     }
@@ -92,7 +107,10 @@ public sealed class InstanceManager : IDisposable
                         || p.CommandLine.Contains($"placeId={inst.PlaceId}")
                         || (string.IsNullOrEmpty(p.CommandLine) && p.StartTime >= inst.LaunchedAt.LocalDateTime.AddSeconds(-2));
             if (mine && !inst.ProcessIds.Contains(p.Pid))
+            {
                 inst.ProcessIds.Add(p.Pid);
+                Watch(p.Pid);
+            }
         }
     }
 
@@ -129,16 +147,18 @@ public sealed class InstanceManager : IDisposable
             }
             if (hasWindow) inst.HadWindow = true;
 
-            bool stillStarting = !inst.HadWindow
-                                 && (DateTimeOffset.Now - inst.LaunchedAt).TotalSeconds < 25;
+            bool graceOver = (DateTimeOffset.Now - inst.LaunchedAt).TotalSeconds >= 25;
 
-            bool closedByUser = inst.HadWindow && !hasWindow;   // window gone
-            bool processGone = !anyClientAlive && !stillStarting; // whole client exited
+            // A live client process with no visible window == closed to the tray (unambiguous, act now).
+            bool closedToTray = anyClientAlive && inst.HadWindow && !hasWindow;
+            // No client process at all — wait out the startup grace first, because the launcher
+            // process can briefly exit while handing off to the real client.
+            bool processGone = !anyClientAlive && graceOver;
 
-            if (closedByUser || processGone)
+            if (closedToTray || processGone)
             {
                 _log?.LogInformation("Instance {Id} closed ({Reason}); cleaning up",
-                    inst.Id, closedByUser ? "window closed" : "process exited");
+                    inst.Id, closedToTray ? "window closed" : "process exited");
                 CleanUp(inst);
                 inst.State = InstanceState.Closed;
                 InstanceChanged?.Invoke(this, inst);
@@ -156,10 +176,22 @@ public sealed class InstanceManager : IDisposable
     {
         AdoptMatchingProcesses(inst);
         foreach (int pid in inst.ProcessIds.ToArray())
+        {
             KillTree(pid);
+            Unwatch(pid);
+        }
         foreach (var p in ProcessScanner.Scan())
             if (p.CommandLine.Contains(inst.BrowserTrackerId.ToString()))
                 KillTree(p.Pid);
+    }
+
+    private void Unwatch(int pid)
+    {
+        lock (_gate)
+        {
+            if (_watched.Remove(pid, out var p))
+                try { p.Dispose(); } catch { }
+        }
     }
 
     private static bool IsAlive(int pid)
@@ -186,5 +218,13 @@ public sealed class InstanceManager : IDisposable
         try { return p.ProcessName; } catch { return "?"; }
     }
 
-    public void Dispose() => _poll.Dispose();
+    public void Dispose()
+    {
+        _poll.Dispose();
+        lock (_gate)
+        {
+            foreach (var p in _watched.Values) try { p.Dispose(); } catch { }
+            _watched.Clear();
+        }
+    }
 }
