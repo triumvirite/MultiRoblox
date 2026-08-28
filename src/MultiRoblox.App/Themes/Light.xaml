@@ -12,6 +12,7 @@
     <Color x:Key="OkColor">#2D7D46</Color>
     <Color x:Key="WarnColor">#B26A00</Color>
     <Color x:Key="DangerColor">#D83C3E</Color>
+    <Color x:Key="InfoColor">#1E7ED8</Color>
 
     <SolidColorBrush x:Key="Bg" Color="{DynamicResource BgColor}"/>
     <SolidColorBrush x:Key="Surface" Color="{DynamicResource SurfaceColor}"/>
@@ -24,5 +25,6 @@
     <SolidColorBrush x:Key="Ok" Color="{DynamicResource OkColor}"/>
     <SolidColorBrush x:Key="Warn" Color="{DynamicResource WarnColor}"/>
     <SolidColorBrush x:Key="Danger" Color="{DynamicResource DangerColor}"/>
+    <SolidColorBrush x:Key="Info" Color="{DynamicResource InfoColor}"/>
 
 </ResourceDictionary>

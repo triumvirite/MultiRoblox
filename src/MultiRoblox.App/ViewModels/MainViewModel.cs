@@ -23,8 +23,21 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<string> Categories { get; } = new();
     public ICollectionView AccountsView { get; }
 
+    /// <summary>Full account list for the grid view, grouped by category (no sidebar filter).</summary>
+    public ICollectionView AccountGrid { get; }
+
     [ObservableProperty] private AccountItemViewModel? _selectedAccount;
     [ObservableProperty] private string _selectedCategory = AllCategories;
+
+    /// <summary>Main pane shows the account grid instead of the join panel + running instances.</summary>
+    [ObservableProperty] private bool _showAccountGrid;
+
+    public string AccountViewToggleText => ShowAccountGrid ? "Toggle Instance View" : "Toggle Account View";
+
+    partial void OnShowAccountGridChanged(bool value) => OnPropertyChanged(nameof(AccountViewToggleText));
+
+    [RelayCommand]
+    private void ToggleAccountView() => ShowAccountGrid = !ShowAccountGrid;
 
     /// <summary>All rows currently highlighted in the sidebar (Ctrl / Shift multi-select).</summary>
     public IReadOnlyList<AccountItemViewModel> SelectedAccounts { get; private set; } = Array.Empty<AccountItemViewModel>();
@@ -97,6 +110,8 @@ public partial class MainViewModel : ObservableObject
         AccountsView = CollectionViewSource.GetDefaultView(Accounts);
         AccountsView.Filter = FilterAccount;
 
+        AccountGrid = new CollectionViewSource { Source = Accounts }.View;
+
         RebuildCategories();
         ReloadFavorites();
         ReloadRecents();
@@ -131,25 +146,37 @@ public partial class MainViewModel : ObservableObject
 
     // --- categories ----------------------------------------------
 
+    public const string NewCategoryItem = "Add new category…";
+
     public void RebuildCategories()
     {
         var wanted = new List<string> { AllCategories };
         wanted.AddRange(_svc.Settings.Current.Categories);
-        wanted.AddRange(_svc.Accounts.Accounts
-            .Select(a => a.EffectiveGroup)
-            .Where(g => g != "Default"));
+        wanted.AddRange(_svc.Accounts.Accounts.SelectMany(a => a.Categories));
         var distinct = wanted.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
+        _rebuildingCategories = true;
         Categories.Clear();
         foreach (var c in distinct) Categories.Add(c);
-        if (!Categories.Contains(SelectedCategory)) SelectedCategory = AllCategories;
+        Categories.Add(NewCategoryItem);   // action row, pinned to the bottom
+        if (!Categories.Contains(SelectedCategory) || SelectedCategory == NewCategoryItem)
+            SelectedCategory = AllCategories;
+        _rebuildingCategories = false;
+
+        // keep the per-row "Categories" popups in sync with the real category list
+        var real = _svc.Settings.Current.Categories
+            .Concat(_svc.Accounts.Accounts.SelectMany(a => a.Categories))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        foreach (var row in Accounts) row.SetCategoryUniverse(real);
     }
 
-    [RelayCommand]
-    private void NewCategory()
+    private bool _rebuildingCategories;
+
+    /// <summary>Prompt for a new category name and register it. Returns the name, or null if cancelled.</summary>
+    public string? PromptNewCategory()
     {
         var name = Dialogs.Prompt("New category", "Name for the new category:");
-        if (string.IsNullOrWhiteSpace(name) || name.Equals(AllCategories, StringComparison.OrdinalIgnoreCase)) return;
+        if (string.IsNullOrWhiteSpace(name) || name.Equals(AllCategories, StringComparison.OrdinalIgnoreCase)) return null;
         name = name.Trim();
         if (!_svc.Settings.Current.Categories.Contains(name, StringComparer.OrdinalIgnoreCase))
         {
@@ -157,18 +184,87 @@ public partial class MainViewModel : ObservableObject
             _svc.Settings.Save();
         }
         RebuildCategories();
-        SelectedCategory = name;
+        return name;
     }
 
+    /// <summary>Create a category (via prompt) and move the given accounts into it.</summary>
+    public void NewCategoryAndAssign(IEnumerable<AccountItemViewModel> items)
+    {
+        if (PromptNewCategory() is { } name)
+            foreach (var it in items) AssignCategory(it, name);
+    }
+
+    /// <summary>"Add new category…" from a grid row's Categories popup.</summary>
+    [RelayCommand]
+    private void AddCategoryToRow(AccountItemViewModel? row)
+    {
+        if (row is null) return;
+        if (PromptNewCategory() is { } name) row.SetCategoryMembership(name, true);
+    }
+
+
+    /// <summary>Add <paramref name="item"/> to <paramref name="category"/> if it isn't already in it.</summary>
     public void AssignCategory(AccountItemViewModel item, string category)
     {
-        bool clear = category == AllCategories;
-        item.Model.Group = clear ? "" : category;
-        _svc.Accounts.Update(item.Model);
-        Status = clear ? $"Removed {item.Label} from its category." : $"Moved {item.Label} to {category}.";
+        if (string.IsNullOrWhiteSpace(category) || category == AllCategories) return;
+        if (!item.Model.Categories.Any(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)))
+        {
+            item.Model.Categories.Add(category);
+            _svc.Accounts.Update(item.Model);
+            item.Refresh();
+        }
+        Status = $"Added {item.Label} to {category}.";
     }
 
-    partial void OnSelectedCategoryChanged(string value) => AccountsView.Refresh();
+    public void UnassignCategory(AccountItemViewModel item, string category)
+    {
+        if (item.Model.Categories.RemoveAll(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)) > 0)
+        {
+            _svc.Accounts.Update(item.Model);
+            item.Refresh();
+            Status = $"Removed {item.Label} from {category}.";
+        }
+    }
+
+    /// <summary>Toggle membership — used by the checkable "Add to category" submenu.</summary>
+    public void ToggleCategory(AccountItemViewModel item, string category)
+    {
+        if (item.InCategory(category)) UnassignCategory(item, category);
+        else AssignCategory(item, category);
+    }
+
+    public void ClearCategories(AccountItemViewModel item)
+    {
+        if (item.Model.Categories.Count == 0) return;
+        item.Model.Categories.Clear();
+        _svc.Accounts.Update(item.Model);
+        item.Refresh();
+        Status = $"Removed {item.Label} from all categories.";
+    }
+
+    private string _lastRealCategory = AllCategories;
+
+    partial void OnSelectedCategoryChanged(string value)
+    {
+        if (_rebuildingCategories) return;
+
+        if (value == NewCategoryItem)
+        {
+            // "Add new category…" is an action, not a filter. Bounce off it on the next dispatcher
+            // tick (so the ComboBox finishes its own selection transaction), prompt, then land on
+            // the created category — or fall back to the previous real selection if cancelled.
+            var previous = _lastRealCategory;
+            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                SelectedCategory = previous;
+                if (PromptNewCategory() is { } created) SelectedCategory = created;
+            }), System.Windows.Threading.DispatcherPriority.Input);
+            return;
+        }
+
+        _lastRealCategory = value;
+        AccountsView.Refresh();
+    }
 
     // --- account list -------------------------------------------
 
@@ -177,7 +273,27 @@ public partial class MainViewModel : ObservableObject
         var selectedId = SelectedAccount?.Id;
         Accounts.Clear();
         foreach (var acc in _svc.Accounts.Accounts)
-            Accounts.Add(new AccountItemViewModel(acc) { Health = _svc.KeepAlive.GetHealth(acc.Id) });
+        {
+            // Alias/Note edits mutate the shared Account object in place, so a plain Save persists
+            // them — no Changed event (which would rebuild every row mid-edit).
+            var row = new AccountItemViewModel(acc)
+            {
+                Health = _svc.KeepAlive.GetHealth(acc.Id),
+                Persist = () => _svc.Accounts.Save(),
+            };
+            row.SetCategoryUniverse(_svc.Settings.Current.Categories
+                .Concat(_svc.Accounts.Accounts.SelectMany(a => a.Categories))
+                .Distinct(StringComparer.OrdinalIgnoreCase));
+            // carry over "in-game" state — ReloadAccounts rebuilds every row from scratch (e.g. after
+            // a drag-reorder) and would otherwise drop it back to "Signed in".
+            var inst = Instances.FirstOrDefault(x => x.Model.AccountId == acc.Id);
+            if (inst is not null)
+            {
+                row.IsInGame = true;
+                row.InGameName = !string.IsNullOrWhiteSpace(inst.GameName) ? inst.GameName : inst.PlaceLine;
+            }
+            Accounts.Add(row);
+        }
         AccountsView.Refresh();
         if (selectedId is not null)
             SelectedAccount = Accounts.FirstOrDefault(a => a.Id == selectedId);
@@ -186,8 +302,7 @@ public partial class MainViewModel : ObservableObject
     private bool FilterAccount(object o)
     {
         if (o is not AccountItemViewModel vm) return false;
-        if (SelectedCategory != AllCategories &&
-            !vm.Group.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase))
+        if (SelectedCategory != AllCategories && !vm.InCategory(SelectedCategory))
             return false;
         if (string.IsNullOrWhiteSpace(SearchText)) return true;
         return vm.Label.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
@@ -483,7 +598,12 @@ public partial class MainViewModel : ObservableObject
             if (!string.IsNullOrWhiteSpace(name))
             {
                 _gameNameCache[placeId] = name!;
-                OnUi(() => row.GameName = name!);
+                OnUi(() =>
+                {
+                    row.GameName = name!;
+                    var av = Accounts.FirstOrDefault(a => a.Id == acc.Id);
+                    if (av is not null && av.IsInGame) av.InGameName = name!;
+                });
             }
         }
         catch { /* name is a nicety; leave the id-only line */ }
@@ -522,13 +642,22 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
-    private void RemoveAccount()
+    private void RemoveAccount() => RemoveAccounts(new[] { SelectedAccount! });
+
+    /// <summary>Confirm and delete one or more accounts (used by the Remove button and the right-click menu).</summary>
+    public void RemoveAccounts(IReadOnlyList<AccountItemViewModel> items)
     {
-        var vm = SelectedAccount!;
-        if (MessageBox.Show($"Remove {vm.Label}? The stored cookie will be deleted.", "MultiRoblox",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-        _svc.Pool.Invalidate(vm.Id);
-        _svc.Accounts.Remove(vm.Id);
+        if (items.Count == 0) return;
+        string what = items.Count == 1 ? items[0].Label : $"{items.Count} accounts";
+        if (MessageBox.Show(
+                $"Remove {what}? The stored cookie{(items.Count == 1 ? "" : "s")} will be deleted.",
+                "MultiRoblox", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+        foreach (var vm in items)
+        {
+            _svc.Pool.Invalidate(vm.Id);
+            _svc.Accounts.Remove(vm.Id);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -540,6 +669,27 @@ public partial class MainViewModel : ObservableObject
         vm.Health = health;
         vm.Refresh();
         Status = health == AccountHealth.Valid ? "Session OK." : "Session needs a re-login.";
+    }
+
+    /// <summary>Re-capture a fresh cookie for an existing account (right-click / double-click a signed-out row).</summary>
+    public void ReLogin(AccountItemViewModel? item)
+    {
+        var vm = item ?? SelectedAccount;
+        if (vm is null) return;
+        var win = new AddAccountWindow(_svc, vm.Model) { Owner = Application.Current.MainWindow };
+        if (win.ShowDialog() == true)
+        {
+            _ = RefreshAccountHealthAsync(vm);
+            Status = $"Re-logged in {vm.Label}.";
+        }
+    }
+
+    private async Task RefreshAccountHealthAsync(AccountItemViewModel vm)
+    {
+        vm.Refresh();
+        var health = await _svc.KeepAlive.RefreshAsync(vm.Model);
+        vm.Health = health;
+        vm.Refresh();
     }
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -615,11 +765,14 @@ public partial class MainViewModel : ObservableObject
 
     public enum UpdateStatus { Checking, UpToDate, Available, Unknown }
 
+    /// <summary>Open the update dropdown and (re)check. The toggle/close is handled in the view so a
+    /// click on the button while it's open dismisses it instead of re-opening.</summary>
     [RelayCommand]
     private async Task CheckForUpdateAsync()
     {
-        UpdatePopupOpen = !UpdatePopupOpen;
-        if (UpdatePopupOpen) { RenderUpdate(_cachedUpdate); await CheckForUpdateSilentlyAsync(); }
+        UpdatePopupOpen = true;
+        RenderUpdate(_cachedUpdate);
+        await CheckForUpdateSilentlyAsync();
     }
 
     [RelayCommand]
@@ -711,7 +864,12 @@ public partial class MainViewModel : ObservableObject
 
         var acc = Accounts.FirstOrDefault(a => a.Id == inst.AccountId);
         if (acc is not null)
-            acc.IsInGame = Instances.Any(x => x.Model.AccountId == inst.AccountId);
+        {
+            var mine = Instances.FirstOrDefault(x => x.Model.AccountId == inst.AccountId);
+            acc.IsInGame = mine is not null;
+            acc.InGameName = mine is null ? "" :
+                !string.IsNullOrWhiteSpace(mine.GameName) ? mine.GameName : mine.PlaceLine;
+        }
     }
 
     private static void OnUi(Action a) => Application.Current.Dispatcher.Invoke(a);

@@ -2,9 +2,28 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using MultiRoblox.App.ViewModels;
 using MultiRoblox.Core.Services;
 
 namespace MultiRoblox.App;
+
+/// <summary>Account status dot / label colour: in-game = green, signed in = blue, needs re-login = red.</summary>
+public sealed class AccountStatusToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type t, object p, CultureInfo c)
+    {
+        var app = Application.Current;
+        return value switch
+        {
+            AccountStatusKind.InGame => app.TryFindResource("Ok") ?? Brushes.MediumSeaGreen,
+            AccountStatusKind.SignedIn => app.TryFindResource("Info") ?? Brushes.DodgerBlue,
+            AccountStatusKind.NeedsLogin => app.TryFindResource("Danger") ?? Brushes.IndianRed,
+            _ => app.TryFindResource("SubtleText") ?? Brushes.Gray,
+        };
+    }
+
+    public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}
 
 public sealed class RelativeTimeConverter : IValueConverter
 {
