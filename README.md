@@ -56,7 +56,8 @@ DPAPI), `settings.json`, `themes\`, `logs\`. Nothing leaves your PC.
 - **Add via login window** — an embedded browser opens Roblox's login; do 2FA / captcha there, and the
   session cookie is captured automatically. Your password is never seen or stored.
 - **Add via paste** — paste a `.ROBLOSECURITY` cookie (with or without the warning prefix) instead.
-- **Join a game** — enter a Place ID and hit Join; optionally add a Job ID to land in one exact
+- **Join a game** — enter a Place ID **or paste a full game link** (`roblox.com/games/123/...`, including
+  `?privateServerLinkCode=` for VIP servers) and hit Join; optionally add a Job ID to land in one exact
   server. Your last Place/Job ID is remembered per account.
 - **Server browser** — lists public servers with player count, ping and FPS; join a selected server,
   "join smallest", or copy a Job ID.
@@ -81,6 +82,10 @@ DPAPI), `settings.json`, `themes\`, `logs\`. Nothing leaves your PC.
   Endpoints mirror the old tool (`/GetAccounts`, `/LaunchAccount`, `/GetAuthTicket`, `/GetInstances`,
   `/TerminateAccount`, …) so existing helper scripts work.
 - **Theming** — Dark and Light built in, plus any custom `themes\<name>.json` colour file.
+- **Check for update** — button in the header; shows installed vs. latest version, and on Yes it
+  downloads the new build, swaps the exe, and relaunches.
+- **Open data folder** — Settings → Data → jump straight to `%AppData%\MultiRoblox` (or the accounts
+  file / logs) in Explorer.
 - **Tray icon** — closing the window minimises to the tray (toggleable); right-click → Quit to exit.
 
 ---

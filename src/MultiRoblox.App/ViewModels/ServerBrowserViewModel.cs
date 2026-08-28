@@ -43,12 +43,16 @@ public partial class ServerBrowserViewModel : ObservableObject
         _placeIdInput = placeId > 0 ? placeId.ToString() : account.SavedPlaceId;
     }
 
+    private long CurrentPlaceId() =>
+        GameLinkParser.TryParse(PlaceIdInput, out var l) ? l.PlaceId : 0;
+
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        if (!long.TryParse(PlaceIdInput.Trim(), out long placeId) || placeId <= 0)
+        long placeId = CurrentPlaceId();
+        if (placeId <= 0)
         {
-            Status = "Enter a valid Place ID.";
+            Status = "Enter a Place ID or paste a game link.";
             return;
         }
         try
@@ -85,7 +89,8 @@ public partial class ServerBrowserViewModel : ObservableObject
     [RelayCommand]
     private async Task JoinSelectedAsync()
     {
-        if (Selected is null || !long.TryParse(PlaceIdInput.Trim(), out long placeId)) return;
+        long placeId = CurrentPlaceId();
+        if (Selected is null || placeId <= 0) return;
         await _main.LaunchAsync(_account, JoinRequest.Server(placeId, Selected.JobId));
         Status = $"Launching into {Selected.JobId}…";
     }
@@ -93,7 +98,8 @@ public partial class ServerBrowserViewModel : ObservableObject
     [RelayCommand]
     private async Task JoinSmallestAsync()
     {
-        if (!long.TryParse(PlaceIdInput.Trim(), out long placeId)) return;
+        long placeId = CurrentPlaceId();
+        if (placeId <= 0) return;
         Busy = true;
         try
         {

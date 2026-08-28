@@ -46,9 +46,9 @@ public static class LaunchStringBuilder
             JoinKind.SpecificServer when !string.IsNullOrWhiteSpace(join.JobId) =>
                 $"{PlaceLauncher}?request=RequestGameJob&placeId={join.PlaceId}&gameId={join.JobId}",
 
-            JoinKind.PrivateServer when !string.IsNullOrWhiteSpace(join.AccessCode) =>
+            JoinKind.PrivateServer when !string.IsNullOrWhiteSpace(join.AccessCode) || !string.IsNullOrWhiteSpace(join.LinkCode) =>
                 $"{PlaceLauncher}?request=RequestPrivateGame&placeId={join.PlaceId}"
-                + $"&accessCode={Uri.EscapeDataString(join.AccessCode!)}"
+                + (string.IsNullOrWhiteSpace(join.AccessCode) ? "" : $"&accessCode={Uri.EscapeDataString(join.AccessCode!)}")
                 + (string.IsNullOrWhiteSpace(join.LinkCode) ? "" : $"&linkCode={Uri.EscapeDataString(join.LinkCode!)}"),
 
             JoinKind.FollowUser when join.FollowUserId > 0 =>

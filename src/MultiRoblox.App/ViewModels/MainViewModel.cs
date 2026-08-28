@@ -125,19 +125,30 @@ public partial class MainViewModel : ObservableObject
     }
 
     private bool CanJoin() =>
-        SelectedAccount is not null && !Busy && long.TryParse(PlaceIdInput.Trim(), out var p) && p > 0;
+        SelectedAccount is not null && !Busy && GameLinkParser.TryParse(PlaceIdInput, out _);
+
+    partial void OnPlaceIdInputChanged(string value) => JoinCommand.NotifyCanExecuteChanged();
 
     [RelayCommand(CanExecute = nameof(CanJoin))]
     private async Task JoinAsync()
     {
         var acc = SelectedAccount!.Model;
-        long placeId = long.Parse(PlaceIdInput.Trim());
-        var join = string.IsNullOrWhiteSpace(JobIdInput)
-            ? JoinRequest.Place(placeId)
-            : JoinRequest.Server(placeId, JobIdInput.Trim());
+        if (!GameLinkParser.TryParse(PlaceIdInput, out var link))
+        {
+            Status = "Couldn't find a place id in that.";
+            return;
+        }
 
-        acc.SavedPlaceId = PlaceIdInput.Trim();
-        acc.SavedJobId = JobIdInput.Trim();
+        // A pasted link's own server info wins; otherwise use the Job ID box.
+        JoinRequest join = link.JobId is null && link.PrivateServerLinkCode is null && link.AccessCode is null
+                           && !string.IsNullOrWhiteSpace(JobIdInput)
+            ? JoinRequest.Server(link.PlaceId, JobIdInput.Trim())
+            : link.ToJoinRequest();
+
+        // Normalise the box to the resolved id so it's clean next time.
+        PlaceIdInput = link.PlaceId.ToString();
+        acc.SavedPlaceId = link.PlaceId.ToString();
+        acc.SavedJobId = join.JobId ?? "";
         acc.LastUsed = DateTimeOffset.Now;
         _svc.Accounts.Update(acc);
 
@@ -186,7 +197,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void OpenServerBrowser()
     {
-        long.TryParse(PlaceIdInput.Trim(), out long placeId);
+        long placeId = GameLinkParser.TryParse(PlaceIdInput, out var link) ? link.PlaceId : 0;
         var win = new ServerBrowserWindow(_svc, SelectedAccount!.Model, placeId, this)
         {
             Owner = Application.Current.MainWindow
@@ -213,6 +224,13 @@ public partial class MainViewModel : ObservableObject
     {
         Clipboard.SetText(SelectedAccount!.Model.SecurityToken);
         Status = "Cookie copied to clipboard.";
+    }
+
+    [RelayCommand]
+    private void CheckForUpdate()
+    {
+        var win = new UpdateWindow { Owner = Application.Current.MainWindow };
+        win.ShowDialog();
     }
 
     [RelayCommand]

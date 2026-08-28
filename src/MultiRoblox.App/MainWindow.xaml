@@ -87,7 +87,10 @@
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="{Binding SelectedAccount.Label, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
                     </StackPanel>
-                    <Button Content="Settings" HorizontalAlignment="Right" Command="{Binding OpenSettingsCommand}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Check for update" Command="{Binding CheckForUpdateCommand}"/>
+                        <Button Content="Settings" Margin="8,0,0,0" Command="{Binding OpenSettingsCommand}"/>
+                    </StackPanel>
                 </Grid>
             </Border>
 
@@ -111,7 +114,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID"/>
+                        <TextBox Grid.Column="0" Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID or game link"/>
                         <TextBox Grid.Column="1" Margin="8,0,0,0" Text="{Binding JobIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Job ID (optional)"/>
                         <Button Grid.Column="2" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}"
                                 Command="{Binding JoinCommand}"/>

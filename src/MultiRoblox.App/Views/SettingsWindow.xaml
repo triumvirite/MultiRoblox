@@ -37,6 +37,14 @@
 
             <TextBlock Text="Appearance" Style="{StaticResource H1}" Margin="0,20,0,0"/>
             <ComboBox x:Name="ThemeBox" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+
+            <TextBlock Text="Data" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+            <TextBlock x:Name="DataPathText" Style="{StaticResource Subtle}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <Button Content="Open data folder" Click="OpenData_Click"/>
+                <Button Content="Show accounts file" Margin="8,0,0,0" Click="ShowAccountsFile_Click"/>
+                <Button Content="Open logs" Margin="8,0,0,0" Click="OpenLogs_Click"/>
+            </StackPanel>
         </StackPanel>
     </DockPanel>
 </Window>

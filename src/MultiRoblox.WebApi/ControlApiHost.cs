@@ -106,11 +106,12 @@ public sealed class ControlApiHost : IAsyncDisposable
         {
             var a = _accounts.FindByName(body.Account);
             if (a is null) return Results.NotFound($"no account '{body.Account}'");
-            if (!long.TryParse(body.PlaceId, out long placeId)) return Results.BadRequest("bad placeId");
+            if (!GameLinkParser.TryParse(body.PlaceId, out var link)) return Results.BadRequest("bad placeId/link");
+            long placeId = link.PlaceId;
 
-            var join = string.IsNullOrWhiteSpace(body.JobId)
-                ? JoinRequest.Place(placeId)
-                : JoinRequest.Server(placeId, body.JobId!);
+            var join = !string.IsNullOrWhiteSpace(body.JobId)
+                ? JoinRequest.Server(placeId, body.JobId!)
+                : link.ToJoinRequest();
 
             if (LaunchHandler is not null) { await LaunchHandler(a, join); return Results.Ok("launched"); }
             await _launcher.LaunchAsync(a, join);
@@ -121,8 +122,8 @@ public sealed class ControlApiHost : IAsyncDisposable
         {
             var a = _accounts.FindByName(account);
             if (a is null) return Results.NotFound();
-            if (!long.TryParse(placeId, out long pid)) return Results.BadRequest();
-            var join = string.IsNullOrWhiteSpace(jobId) ? JoinRequest.Place(pid) : JoinRequest.Server(pid, jobId!);
+            if (!GameLinkParser.TryParse(placeId, out var link)) return Results.BadRequest();
+            var join = string.IsNullOrWhiteSpace(jobId) ? link.ToJoinRequest() : JoinRequest.Server(link.PlaceId, jobId!);
             if (LaunchHandler is not null) { await LaunchHandler(a, join); return Results.Ok("launched"); }
             await _launcher.LaunchAsync(a, join);
             return Results.Ok("launched");
