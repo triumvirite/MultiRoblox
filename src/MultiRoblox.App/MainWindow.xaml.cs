@@ -118,6 +118,12 @@ public partial class MainWindow : Window
             Vm.JoinFavoriteCommand.Execute(Vm.SelectedFavorite);
     }
 
+    private void Recent_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (Vm.SelectedRecent is not null && Vm.JoinRecentCommand.CanExecute(Vm.SelectedRecent))
+            Vm.JoinRecentCommand.Execute(Vm.SelectedRecent);
+    }
+
     private sealed class SimpleCommand(Action run) : ICommand
     {
         public event EventHandler? CanExecuteChanged { add { } remove { } }

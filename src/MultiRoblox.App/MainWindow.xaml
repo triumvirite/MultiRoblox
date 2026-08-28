@@ -36,6 +36,15 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="ModeRecents" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding JoinModeValue}" Value="Recents">
+                    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                    <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="ModeFinder" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
             <Style.Triggers>
@@ -196,6 +205,8 @@
                                 Command="{Binding SetJoinModeCommand}" CommandParameter="Manual"/>
                         <Button Content="Favorites" Style="{StaticResource ModeFavorites}"
                                 Command="{Binding SetJoinModeCommand}" CommandParameter="Favorites"/>
+                        <Button Content="Recents" Style="{StaticResource ModeRecents}"
+                                Command="{Binding SetJoinModeCommand}" CommandParameter="Recents"/>
                         <Button Content="Player finder" Style="{StaticResource ModeFinder}"
                                 Command="{Binding SetJoinModeCommand}" CommandParameter="PlayerFinder"/>
                     </StackPanel>
@@ -226,6 +237,27 @@
                         <ListBox ItemsSource="{Binding Favorites}" SelectedItem="{Binding SelectedFavorite}"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                  MouseDoubleClick="Favorite_DoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding PlaceId}" Style="{StaticResource Subtle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <!-- Recents -->
+                    <DockPanel Margin="0,12,0,0" Height="160"
+                               Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Recents}">
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinRecentCommand}"/>
+                            <Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding ClearRecentsCommand}"/>
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding Recents}" SelectedItem="{Binding SelectedRecent}"
+                                 Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                 MouseDoubleClick="Recent_DoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel>

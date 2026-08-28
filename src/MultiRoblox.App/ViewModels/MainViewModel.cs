@@ -30,7 +30,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _busy;
 
     // --- join panel -------------------------------------------------
-    public enum JoinMode { Manual, Favorites, PlayerFinder }
+    public enum JoinMode { Manual, Favorites, Recents, PlayerFinder }
 
     [ObservableProperty] private JoinMode _joinModeValue = JoinMode.Manual;
     [ObservableProperty] private string _placeIdInput = "";
@@ -38,6 +38,9 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<FavoriteGame> Favorites { get; } = new();
     [ObservableProperty] private FavoriteGame? _selectedFavorite;
+
+    public ObservableCollection<RecentGame> Recents { get; } = new();
+    [ObservableProperty] private RecentGame? _selectedRecent;
 
     [ObservableProperty] private string _finderQuery = "";
     public ObservableCollection<PlayerFindResult> FinderResults { get; } = new();
@@ -69,6 +72,7 @@ public partial class MainViewModel : ObservableObject
 
         RebuildCategories();
         ReloadFavorites();
+        ReloadRecents();
         ReloadAccounts();
 
         _svc.KeepAlive.HealthChanged += (_, e) => OnUi(() =>
@@ -253,6 +257,52 @@ public partial class MainViewModel : ObservableObject
         await LaunchAsync(SelectedAccount.Model, JoinRequest.Place(game.PlaceId));
     }
 
+    // --- join: recents (games launched through the app) -------
+
+    private const int RecentsCap = 20;
+
+    private void ReloadRecents()
+    {
+        Recents.Clear();
+        foreach (var r in _svc.Settings.Current.Recents.OrderByDescending(r => r.LastPlayed))
+            Recents.Add(r);
+    }
+
+    private async Task RecordRecentAsync(long placeId, Account acc)
+    {
+        if (placeId <= 0) return;
+        var list = _svc.Settings.Current.Recents;
+        var existing = list.FirstOrDefault(r => r.PlaceId == placeId);
+        string name = existing?.Name ?? "";
+        if (string.IsNullOrEmpty(name))
+        {
+            try { name = await new GamesClient(_svc.Pool.Get(acc)).GetPlaceNameAsync(placeId) ?? ""; } catch { }
+            if (string.IsNullOrEmpty(name)) name = $"Place {placeId}";
+        }
+        list.RemoveAll(r => r.PlaceId == placeId);
+        list.Insert(0, new RecentGame { PlaceId = placeId, Name = name, LastPlayed = DateTimeOffset.Now });
+        if (list.Count > RecentsCap) list.RemoveRange(RecentsCap, list.Count - RecentsCap);
+        _svc.Settings.Save();
+        OnUi(ReloadRecents);
+    }
+
+    [RelayCommand]
+    private async Task JoinRecentAsync(RecentGame? game)
+    {
+        game ??= SelectedRecent;
+        if (game is null || SelectedAccount is null || game.PlaceId == 0) return;
+        await LaunchAsync(SelectedAccount.Model, JoinRequest.Place(game.PlaceId));
+    }
+
+    [RelayCommand]
+    private void ClearRecents()
+    {
+        _svc.Settings.Current.Recents.Clear();
+        _svc.Settings.Save();
+        ReloadRecents();
+        Status = "Cleared recent games.";
+    }
+
     // --- join: player finder ---------------------------------
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
@@ -313,6 +363,7 @@ public partial class MainViewModel : ObservableObject
             var inst = _svc.Instances.Register(acc, join, result.Process, result.BrowserTrackerId);
             OnUi(() => Instances.Add(new InstanceItemViewModel(inst)));
             Status = $"Launched {acc.DisplayLabel}.";
+            _ = RecordRecentAsync(join.PlaceId, acc);
         }
         catch (Exception ex)
         {
