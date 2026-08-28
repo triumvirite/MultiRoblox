@@ -14,9 +14,11 @@ This one is source-visible, stores nothing off your machine, and talks only to o
 **You do not install anything.** MultiRoblox is a single program you run directly.
 
 1. Get the app:
-   - **Easiest:** download `MultiRoblox.exe` from the repo's Releases and double-click it. Nothing to
-     install — the .NET runtime is bundled inside. (Windows may show a SmartScreen prompt the first
-     time: *More info → Run anyway*.)
+   - **Easiest:** grab the zip from the
+     [**Latest build**](../../releases/tag/latest) release, unzip, double-click `MultiRoblox.exe`.
+     Nothing to install — the .NET runtime is bundled inside. (SmartScreen the first time:
+     *More info → Run anyway*.) This release is rebuilt automatically on every push to `main`, so it
+     always matches the current code; tagged `vX.Y.Z` releases are permanent snapshots.
    - **From source:** install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
      (`winget install Microsoft.DotNet.SDK.8`), then build your own exe + Desktop shortcut:
      ```
@@ -26,11 +28,13 @@ This one is source-visible, stores nothing off your machine, and talks only to o
      (~180 MB, .NET bundled in — copy it anywhere). Or just `dotnet run --project src/MultiRoblox.App`
      to run without building an exe.
 
-   To cut a GitHub release (needs `gh` signed in):
+   **Releases are automated** — GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
+   builds and tests on every push to `main` and refreshes the rolling **Latest build** release.
+   For a permanent versioned release, push a tag:
    ```
-   powershell -ExecutionPolicy Bypass -File publish.ps1 -Release v1.1.0 -Notes "what changed"
+   git tag v1.1.0 && git push origin v1.1.0
    ```
-   Builds, zips exe + README, tags, pushes the tag, and attaches the zip to a new release.
+   (or run `publish.ps1 -Release v1.1.0 -Notes "what changed"` to do it from your machine).
 2. Launch it. Click **Add** (bottom-left), sign in through the built-in login window, and the account
    appears in the sidebar.
 3. Click an account → type a **Place ID** → **Join**.
