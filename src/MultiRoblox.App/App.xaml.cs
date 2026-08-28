@@ -16,6 +16,7 @@ public partial class App : Application
         base.OnStartup(e);
         DispatcherUnhandledException += OnUnhandledException;
 
+        MultiRoblox.App.Services.TitleBarTheme.HookGlobally();
         Services = new AppServices();
         try
         {

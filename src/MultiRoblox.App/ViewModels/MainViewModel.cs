@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MultiRoblox.App.Services;
@@ -26,6 +27,15 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _status = "Ready";
     [ObservableProperty] private bool _busy;
 
+    [ObservableProperty] private string _themeToggleText = "";
+    [ObservableProperty] private Brush _themeToggleBackground = Brushes.Transparent;
+    [ObservableProperty] private Brush _themeToggleForeground = Brushes.White;
+
+    [ObservableProperty] private UpdateStatus _updateState = UpdateStatus.Checking;
+    [ObservableProperty] private string _updateTooltip = "Checking for updates…";
+    [ObservableProperty] private string _updateButtonText = "Check for update";
+    private UpdateInfo? _cachedUpdate;
+
     public MainViewModel(AppServices svc)
     {
         _svc = svc;
@@ -44,6 +54,77 @@ public partial class MainViewModel : ObservableObject
 
         _svc.Instances.InstanceChanged += (_, inst) => OnUi(() => SyncInstance(inst));
         _svc.Accounts.Changed += (_, _) => OnUi(ReloadAccounts);
+
+        UpdateThemeToggle();
+        _ = CheckForUpdateSilentlyAsync();
+    }
+
+    private static readonly Brush LightBg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+    private static readonly Brush LightFg = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x22));
+    private static readonly Brush DarkBg = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x22));
+    private static readonly Brush DarkFg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+
+    /// <summary>The button advertises the theme it will switch you TO, previewing that theme's colours.</summary>
+    private void UpdateThemeToggle()
+    {
+        bool currentlyLight = _svc.Settings.Current.ThemeName == "Light";
+        if (currentlyLight)
+        {
+            ThemeToggleText = "Dark theme";
+            ThemeToggleBackground = DarkBg;
+            ThemeToggleForeground = DarkFg;
+        }
+        else
+        {
+            ThemeToggleText = "Light theme";
+            ThemeToggleBackground = LightBg;
+            ThemeToggleForeground = LightFg;
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleTheme()
+    {
+        var s = _svc.Settings.Current;
+        s.ThemeName = s.ThemeName == "Light" ? "Dark" : "Light";
+        _svc.Settings.Save();
+        ThemeManager.Apply(s.ThemeName);
+        TitleBarTheme.ApplyToOpenWindows();
+        UpdateThemeToggle();
+    }
+
+    public enum UpdateStatus { Checking, UpToDate, Available, Unknown }
+
+    private async Task CheckForUpdateSilentlyAsync()
+    {
+        try
+        {
+            var info = await new UpdateService().CheckAsync();
+            _cachedUpdate = info;
+            OnUi(() =>
+            {
+                if (info.UpdateAvailable)
+                {
+                    UpdateState = UpdateStatus.Available;
+                    UpdateButtonText = $"Update to {info.LatestTag}";
+                    UpdateTooltip = $"Update available: {info.LatestTag} (installed v{info.Current.ToString(3)})";
+                }
+                else
+                {
+                    UpdateState = UpdateStatus.UpToDate;
+                    UpdateButtonText = "Check for update";
+                    UpdateTooltip = $"Up to date (v{info.Current.ToString(3)})";
+                }
+            });
+        }
+        catch
+        {
+            OnUi(() =>
+            {
+                UpdateState = UpdateStatus.Unknown;
+                UpdateTooltip = "Couldn't check for updates";
+            });
+        }
     }
 
     // --- account list ------------------------------------------------
@@ -227,10 +308,11 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void CheckForUpdate()
+    private async Task CheckForUpdateAsync()
     {
-        var win = new UpdateWindow { Owner = Application.Current.MainWindow };
+        var win = new UpdateWindow(_cachedUpdate) { Owner = Application.Current.MainWindow };
         win.ShowDialog();
+        await CheckForUpdateSilentlyAsync();
     }
 
     [RelayCommand]

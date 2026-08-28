@@ -8,13 +8,16 @@ public sealed class AppSettings
     /// <summary>Optional explicit path to RobloxPlayerBeta.exe. Empty = auto-detect from registry.</summary>
     public string RobloxPlayerPathOverride { get; set; } = "";
 
-    /// <summary>Minutes between background cookie-rotation refreshes. 0 = disabled.</summary>
-    public int CookieRefreshMinutes { get; set; } = 60;
+    /// <summary>
+    /// Minutes between background cookie-rotation refreshes. 0 = only refresh once when the app opens
+    /// (enough for a desktop app you close between sessions).
+    /// </summary>
+    public int CookieRefreshMinutes { get; set; } = 0;
 
     /// <summary>Re-launch an instance automatically if it disconnects or crashes.</summary>
     public bool AutoRelaunchOnDisconnect { get; set; } = false;
 
-    public bool CloseToTray { get; set; } = true;
+    public bool CloseToTray { get; set; } = false;
 
     // Local control API
     public bool WebApiEnabled { get; set; } = false;

@@ -36,6 +36,32 @@ public sealed class BoolToVisibilityConverter : IValueConverter
     public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
 }
 
+public sealed class UpdateStatusToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type t, object p, CultureInfo c)
+    {
+        var app = Application.Current;
+        return value?.ToString() switch
+        {
+            "UpToDate" => app.TryFindResource("Ok") ?? Brushes.Green,
+            "Available" => app.TryFindResource("Warn") ?? Brushes.Orange,
+            "Unknown" => app.TryFindResource("Danger") ?? Brushes.Red,
+            _ => app.TryFindResource("SubtleText") ?? Brushes.Gray,
+        };
+    }
+
+    public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}
+
+public sealed class EqualsToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type t, object p, CultureInfo c) =>
+        string.Equals(value?.ToString(), p?.ToString(), StringComparison.Ordinal)
+            ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}
+
 public sealed class NullToBoolConverter : IValueConverter
 {
     public object Convert(object value, Type t, object p, CultureInfo c) => value is not null;
