@@ -9,10 +9,12 @@ public sealed class TrayIcon : IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
     private readonly Window _window;
+    private readonly Action _onQuit;
 
     public TrayIcon(Window window, Action onQuit)
     {
         _window = window;
+        _onQuit = onQuit;
 
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open MultiRoblox", null, (_, _) => Restore());
@@ -37,8 +39,16 @@ public sealed class TrayIcon : IDisposable
         {
             if (ShouldHideToTray())
             {
+                // Keep the window alive & hidden so the tray can bring it back.
                 e.Cancel = true;
                 _window.Hide();
+            }
+            else
+            {
+                // No close-to-tray: the X button means quit. Without this the app (ShutdownMode
+                // = OnExplicitShutdown) would keep running headless and a later tray click would
+                // throw "Cannot call Show after a Window has closed".
+                _onQuit();
             }
         };
     }
@@ -58,9 +68,16 @@ public sealed class TrayIcon : IDisposable
 
     private void Restore()
     {
-        _window.Show();
-        _window.WindowState = WindowState.Normal;
-        _window.Activate();
+        try
+        {
+            _window.Show();
+            _window.WindowState = WindowState.Normal;
+            _window.Activate();
+        }
+        catch (InvalidOperationException)
+        {
+            // Window was already closed (shouldn't happen now that X = quit) — nothing to restore.
+        }
     }
 
     public void Dispose()

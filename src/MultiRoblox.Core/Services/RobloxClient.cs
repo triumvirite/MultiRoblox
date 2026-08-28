@@ -98,9 +98,11 @@ public sealed class RobloxClient : IDisposable
     public async Task<AuthenticatedUser> ValidateAsync(CancellationToken ct = default)
     {
         using var res = await _http.GetAsync("https://users.roblox.com/v1/users/authenticated", ct);
-        CaptureRotatedCookie(res);
+        // Only trust Set-Cookie from an authenticated response — a 401/403 can carry a guest cookie
+        // that would otherwise clobber the stored session.
         if (res.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             throw new RobloxAuthException("Cookie is no longer valid.");
+        CaptureRotatedCookie(res);
         res.EnsureSuccessStatusCode();
         var user = await res.Content.ReadFromJsonAsync<AuthenticatedUser>(cancellationToken: ct);
         return user ?? throw new RobloxApiException("Malformed authenticated-user response.");

@@ -30,7 +30,8 @@ public sealed class AppServices : IDisposable
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.File(Path.Combine(AppPaths.LogsDir, "multiroblox-.log"),
-                rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7)
+                rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7,
+                shared: true, flushToDiskInterval: TimeSpan.FromMilliseconds(500))
             .CreateLogger();
         LoggerFactory = new SerilogLoggerFactory(Log.Logger);
 
@@ -38,7 +39,10 @@ public sealed class AppServices : IDisposable
         Settings.Load();
 
         var protector = new SecretProtector(); // DPAPI only for v1; passphrase prompt can wrap this later
-        Accounts = new AccountStore(AppPaths.AccountsFile, protector);
+        Accounts = new AccountStore(AppPaths.AccountsFile, protector)
+        {
+            Log = msg => Serilog.Log.Information("AccountStore: {Msg}", msg),
+        };
 
         Pool = new RobloxClientPool(Accounts);
         Launcher = new GameLauncher(Settings, Pool, LoggerFactory.CreateLogger<GameLauncher>());
