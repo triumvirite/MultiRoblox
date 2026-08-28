@@ -29,11 +29,15 @@ jobs:
         id: ver
         shell: pwsh
         run: |
-          # The release version is the <Version> in the csproj, verbatim. Bump it there to publish
-          # a new version the in-app updater will notify users about.
+          # major.minor come from <Version> in the csproj; the patch auto-increments each push within
+          # that minor line (counting existing v<major>.<minor>.* tags), so every push is a strictly
+          # newer version the in-app updater can compare against. Bump <Version>'s minor for a new line.
           $csproj = Get-Content src/MultiRoblox.App/MultiRoblox.App.csproj -Raw
-          if ($csproj -notmatch '<Version>(\d+\.\d+\.\d+)</Version>') { throw "no X.Y.Z <Version> in csproj" }
-          $version = $Matches[1]
+          if ($csproj -notmatch '<Version>(\d+)\.(\d+)') { throw "no major.minor <Version> in csproj" }
+          $base = "$($Matches[1]).$($Matches[2])"
+          git fetch --tags --force --quiet
+          $patch = (git tag -l "v$base.*" | Measure-Object).Count   # v1.1.0 present -> next is v1.1.1
+          $version = "$base.$patch"
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
           "tag=v$version"    | Out-File $env:GITHUB_OUTPUT -Append
           Write-Host "version = v$version"
