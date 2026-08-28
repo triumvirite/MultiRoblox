@@ -36,9 +36,30 @@ internal static class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool TerminateJobObject(IntPtr hJob, uint uExitCode);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool QueryInformationJobObject(
+        IntPtr hJob, JobObjectInfoType infoType, IntPtr lpJobObjectInfo, uint cbJobObjectInfoLength, IntPtr lpReturnLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern IntPtr OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, uint pid);
+
+    internal const uint PROCESS_TERMINATE = 0x0001;
+    internal const uint PROCESS_SET_QUOTA = 0x0100;
+    internal const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
     internal enum JobObjectInfoType
     {
+        BasicProcessIdList = 3,
         ExtendedLimitInformation = 9,
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct JOBOBJECT_BASIC_PROCESS_ID_LIST
+    {
+        public uint NumberOfAssignedProcesses;
+        public uint NumberOfProcessIdsInList;
+        // followed by NumberOfProcessIdsInList * UIntPtr — read manually
     }
 
     [Flags]

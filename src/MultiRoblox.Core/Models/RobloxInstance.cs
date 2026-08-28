@@ -1,14 +1,15 @@
+using MultiRoblox.Core.Services;
+
 namespace MultiRoblox.Core.Models;
 
 public enum InstanceState
 {
     Launching,
     Running,
-    Disconnected,
-    /// <summary>The client window was closed (X / Alt+F4) or the process exited on its own.</summary>
+    /// <summary>The client is gone — window closed (X / Alt+F4), process exited, or crashed.</summary>
     Closed,
+    /// <summary>We killed it (Leave / Close all).</summary>
     Terminated,
-    Crashed,
 }
 
 /// <summary>A live (or recently live) Roblox client that the app started for an account.</summary>
@@ -22,17 +23,16 @@ public sealed class RobloxInstance
     public string? JobId { get; set; }
     public DateTimeOffset LaunchedAt { get; } = DateTimeOffset.Now;
 
-    /// <summary>PIDs believed to belong to this instance (RobloxPlayerBeta + helpers).</summary>
-    public List<int> ProcessIds { get; } = new();
+    /// <summary>The job object wrapping this client's whole process tree.</summary>
+    public RobloxProcessGroup? Group { get; set; }
+
+    public int RootPid { get; set; }
 
     public InstanceState State { get; set; } = InstanceState.Launching;
 
-    /// <summary>Set once the client has shown a visible window; lets us tell "closed to tray" from "still starting".</summary>
+    /// <summary>Set once the client has shown a visible window; tells "closed to tray" from "still starting".</summary>
     public bool HadWindow { get; set; }
 
-    /// <summary>First poll at which the client's window was found missing (debounce for transient hides).</summary>
+    /// <summary>When the client's window was first found missing (debounce for transient hides during loading).</summary>
     public DateTimeOffset? WindowGoneSince { get; set; }
-
-    /// <summary>Last known log file path for this instance (used by the watchdog).</summary>
-    public string? LogFile { get; set; }
 }

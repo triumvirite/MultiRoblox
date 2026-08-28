@@ -414,7 +414,7 @@ public partial class MainViewModel : ObservableObject
             Busy = true;
             Status = $"Launching {acc.DisplayLabel}…";
             var result = await _svc.Launcher.LaunchAsync(acc, join);
-            var inst = _svc.Instances.Register(acc, join, result.Process, result.BrowserTrackerId);
+            var inst = _svc.Instances.Register(acc, join, result.Process, result.Group, result.BrowserTrackerId);
             OnUi(() => Instances.Add(new InstanceItemViewModel(inst)));
             Status = $"Launched {acc.DisplayLabel}.";
             _ = RecordRecentAsync(join.PlaceId, acc);
@@ -431,16 +431,17 @@ public partial class MainViewModel : ObservableObject
     private void LeaveInstance(InstanceItemViewModel? item)
     {
         if (item is null) return;
-        _svc.Instances.Terminate(item.Model);
-        Instances.Remove(item);
-        Status = $"Closed {item.AccountLabel}.";
+        Instances.Remove(item);                       // drop the row now, don't wait on the kill
+        var label = item.AccountLabel;
+        try { _svc.Instances.Terminate(item.Model); } catch (Exception ex) { Status = "Close failed: " + ex.Message; return; }
+        Status = $"Closed {label}.";
     }
 
     [RelayCommand]
     private void TerminateAll()
     {
-        _svc.Instances.TerminateAll();
         Instances.Clear();
+        try { _svc.Instances.TerminateAll(); } catch (Exception ex) { Status = "Close all failed: " + ex.Message; return; }
         Status = "Closed all instances.";
     }
 
@@ -632,31 +633,18 @@ public partial class MainViewModel : ObservableObject
     private void SyncInstance(RobloxInstance inst)
     {
         var vm = Instances.FirstOrDefault(x => x.Model.Id == inst.Id);
-        if (vm is null) return;
-        vm.Sync();
 
         // Client gone (closed via X / Alt+F4, exited, crashed, or we terminated it) — drop the row.
-        if (inst.State is InstanceState.Closed or InstanceState.Disconnected or InstanceState.Terminated)
+        if (inst.State is InstanceState.Closed or InstanceState.Terminated)
         {
-            Instances.Remove(vm);
-            if (inst.State is InstanceState.Disconnected && _svc.Settings.Current.AutoRelaunchOnDisconnect)
-            {
-                var account = _svc.Accounts.FindById(inst.AccountId);
-                if (account is not null)
-                    _ = LaunchAsync(account, inst.JobId is { Length: > 0 }
-                        ? JoinRequest.Server(inst.PlaceId, inst.JobId)
-                        : JoinRequest.Place(inst.PlaceId));
-            }
-            else if (inst.State is InstanceState.Closed)
-            {
-                Status = $"{inst.AccountLabel} closed.";
-            }
+            if (vm is not null) Instances.Remove(vm);
+            if (inst.State is InstanceState.Closed) Status = $"{inst.AccountLabel} closed.";
         }
+        else vm?.Sync();
 
         var acc = Accounts.FirstOrDefault(a => a.Id == inst.AccountId);
         if (acc is not null)
-            acc.IsInGame = Instances.Any(x => x.Model.AccountId == inst.AccountId
-                                              && x.Model.State is InstanceState.Running or InstanceState.Launching);
+            acc.IsInGame = Instances.Any(x => x.Model.AccountId == inst.AccountId);
     }
 
     private static void OnUi(Action a) => Application.Current.Dispatcher.Invoke(a);

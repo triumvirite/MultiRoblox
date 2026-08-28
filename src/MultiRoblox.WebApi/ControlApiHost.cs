@@ -132,7 +132,7 @@ public sealed class ControlApiHost : IAsyncDisposable
         app.MapGet("/GetInstances", () =>
             Results.Json(_instances.Snapshot().Select(i => new
             {
-                i.AccountLabel, i.PlaceId, i.JobId, State = i.State.ToString(), i.ProcessIds
+                i.AccountLabel, i.PlaceId, i.JobId, State = i.State.ToString(), Pid = i.RootPid
             })));
 
         app.MapPost("/TerminateAccount", (string account) =>

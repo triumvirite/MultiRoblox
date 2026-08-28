@@ -22,7 +22,7 @@ public sealed class GameLauncher
         _log = log;
     }
 
-    public sealed record LaunchResult(Process Process, string LaunchString, long BrowserTrackerId);
+    public sealed record LaunchResult(Process Process, RobloxProcessGroup? Group, string LaunchString, long BrowserTrackerId);
 
     public async Task<LaunchResult> LaunchAsync(Account account, JoinRequest join, CancellationToken ct = default)
     {
@@ -51,6 +51,10 @@ public sealed class GameLauncher
         var proc = Process.Start(psi)
                    ?? throw new InvalidOperationException("Process.Start returned null for RobloxPlayerBeta.exe.");
 
-        return new LaunchResult(proc, launchString, btid);
+        // Wrap it (and everything it spawns) in a job object right away so we can tear the whole
+        // group down atomically later — the only reliable way to clear Roblox's tray icon.
+        var group = RobloxProcessGroup.Create(proc, _log);
+
+        return new LaunchResult(proc, group, launchString, btid);
     }
 }
