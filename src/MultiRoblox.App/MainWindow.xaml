@@ -113,9 +113,15 @@
                                          Fill="{Binding Health, Converter={StaticResource HealthBrush}}"/>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                     <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{Binding HealthText}" Style="{StaticResource Subtle}"/>
+                                    <TextBlock x:Name="Sub" Text="{Binding HealthText}" FontSize="12"
+                                               Foreground="{DynamicResource SubtleText}"/>
                                 </StackPanel>
                             </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                    <Setter TargetName="Sub" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -245,9 +251,15 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding PlaceId}" Style="{StaticResource Subtle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="Pid" DockPanel.Dock="Right" Text="{Binding PlaceId}" FontSize="12"
+                                                   Foreground="{DynamicResource SubtleText}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2" VerticalAlignment="Center"/>
                                     </DockPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                            <Setter TargetName="Pid" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -266,9 +278,15 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel>
-                                        <TextBlock DockPanel.Dock="Right" Text="{Binding PlaceId}" Style="{StaticResource Subtle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="Pid" DockPanel.Dock="Right" Text="{Binding PlaceId}" FontSize="12"
+                                                   Foreground="{DynamicResource SubtleText}" VerticalAlignment="Center"/>
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2" VerticalAlignment="Center"/>
                                     </DockPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                            <Setter TargetName="Pid" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
