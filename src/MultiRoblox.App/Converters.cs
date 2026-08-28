@@ -11,12 +11,10 @@ public sealed class RelativeTimeConverter : IValueConverter
     public object Convert(object value, Type t, object p, CultureInfo c)
     {
         if (value is not DateTimeOffset dt) return "";
-        var span = DateTimeOffset.Now - dt;
-        if (span.TotalSeconds < 60) return "just now";
-        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
-        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
-        if (span.TotalDays < 7) return $"{(int)span.TotalDays}d ago";
-        return dt.LocalDateTime.ToString("MMM d", c);
+        var local = dt.LocalDateTime;
+        return local.Date == DateTime.Today
+            ? "Today " + local.ToString("h:mm tt", c)
+            : local.ToString("MMM d, yyyy  h:mm tt", c);
     }
 
     public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
