@@ -14,26 +14,52 @@ namespace MultiRoblox.App.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    public const string AllCategories = "All Accounts";
+
     private readonly AppServices _svc;
 
     public ObservableCollection<AccountItemViewModel> Accounts { get; } = new();
     public ObservableCollection<InstanceItemViewModel> Instances { get; } = new();
+    public ObservableCollection<string> Categories { get; } = new();
     public ICollectionView AccountsView { get; }
 
     [ObservableProperty] private AccountItemViewModel? _selectedAccount;
+    [ObservableProperty] private string _selectedCategory = AllCategories;
     [ObservableProperty] private string _searchText = "";
-    [ObservableProperty] private string _placeIdInput = "";
-    [ObservableProperty] private string _jobIdInput = "";
     [ObservableProperty] private string _status = "Ready";
     [ObservableProperty] private bool _busy;
 
+    // --- join panel -------------------------------------------------
+    public enum JoinMode { Manual, Favorites, PlayerFinder }
+
+    [ObservableProperty] private JoinMode _joinModeValue = JoinMode.Manual;
+    [ObservableProperty] private string _placeIdInput = "";
+    [ObservableProperty] private string _jobIdInput = "";
+
+    public ObservableCollection<GameSummary> FavoriteGames { get; } = new();
+    [ObservableProperty] private GameSummary? _selectedFavorite;
+
+    [ObservableProperty] private string _finderQuery = "";
+    public ObservableCollection<PlayerFindResult> FinderResults { get; } = new();
+
+    // --- theme toggle ---------------------------------------------
     [ObservableProperty] private string _themeToggleText = "";
     [ObservableProperty] private Brush _themeToggleBackground = Brushes.Transparent;
     [ObservableProperty] private Brush _themeToggleForeground = Brushes.White;
 
+    // --- update panel --------------------------------------------
     [ObservableProperty] private UpdateStatus _updateState = UpdateStatus.Checking;
     [ObservableProperty] private string _updateTooltip = "Checking for updates…";
     [ObservableProperty] private string _updateButtonText = "Check for update";
+    [ObservableProperty] private bool _updatePopupOpen;
+    [ObservableProperty] private string _updateHeadline = "Checking…";
+    [ObservableProperty] private string _updateInstalledText = "";
+    [ObservableProperty] private string _updateLatestText = "";
+    [ObservableProperty] private string _updateNotes = "";
+    [ObservableProperty] private bool _updateHasNotes;
+    [ObservableProperty] private bool _updateCanInstall;
+    [ObservableProperty] private bool _updateInstalling;
+    [ObservableProperty] private double _updateProgress;
     private UpdateInfo? _cachedUpdate;
 
     public MainViewModel(AppServices svc)
@@ -41,9 +67,9 @@ public partial class MainViewModel : ObservableObject
         _svc = svc;
 
         AccountsView = CollectionViewSource.GetDefaultView(Accounts);
-        AccountsView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(AccountItemViewModel.Group)));
         AccountsView.Filter = FilterAccount;
 
+        RebuildCategories();
         ReloadAccounts();
 
         _svc.KeepAlive.HealthChanged += (_, e) => OnUi(() =>
@@ -51,93 +77,61 @@ public partial class MainViewModel : ObservableObject
             var vm = Accounts.FirstOrDefault(a => a.Id == e.AccountId);
             if (vm is not null) vm.Health = e.Health;
         });
-
         _svc.Instances.InstanceChanged += (_, inst) => OnUi(() => SyncInstance(inst));
-        _svc.Accounts.Changed += (_, _) => OnUi(ReloadAccounts);
+        _svc.Accounts.Changed += (_, _) => OnUi(() => { RebuildCategories(); ReloadAccounts(); });
 
         UpdateThemeToggle();
         _ = CheckForUpdateSilentlyAsync();
     }
 
-    private static readonly Brush LightBg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-    private static readonly Brush LightFg = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x22));
-    private static readonly Brush DarkBg = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x22));
-    private static readonly Brush DarkFg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+    // --- categories ----------------------------------------------
 
-    /// <summary>The button advertises the theme it will switch you TO, previewing that theme's colours.</summary>
-    private void UpdateThemeToggle()
+    public void RebuildCategories()
     {
-        bool currentlyLight = _svc.Settings.Current.ThemeName == "Light";
-        if (currentlyLight)
-        {
-            ThemeToggleText = "Dark theme";
-            ThemeToggleBackground = DarkBg;
-            ThemeToggleForeground = DarkFg;
-        }
-        else
-        {
-            ThemeToggleText = "Light theme";
-            ThemeToggleBackground = LightBg;
-            ThemeToggleForeground = LightFg;
-        }
+        var wanted = new List<string> { AllCategories };
+        wanted.AddRange(_svc.Settings.Current.Categories);
+        wanted.AddRange(_svc.Accounts.Accounts
+            .Select(a => a.EffectiveGroup)
+            .Where(g => g != "Default"));
+        var distinct = wanted.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        Categories.Clear();
+        foreach (var c in distinct) Categories.Add(c);
+        if (!Categories.Contains(SelectedCategory)) SelectedCategory = AllCategories;
     }
 
     [RelayCommand]
-    private void ToggleTheme()
+    private void NewCategory()
     {
-        var s = _svc.Settings.Current;
-        s.ThemeName = s.ThemeName == "Light" ? "Dark" : "Light";
-        _svc.Settings.Save();
-        ThemeManager.Apply(s.ThemeName);
-        TitleBarTheme.ApplyToOpenWindows();
-        UpdateThemeToggle();
+        var name = Dialogs.Prompt("New category", "Name for the new category:");
+        if (string.IsNullOrWhiteSpace(name) || name.Equals(AllCategories, StringComparison.OrdinalIgnoreCase)) return;
+        name = name.Trim();
+        if (!_svc.Settings.Current.Categories.Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            _svc.Settings.Current.Categories.Add(name);
+            _svc.Settings.Save();
+        }
+        RebuildCategories();
+        SelectedCategory = name;
     }
 
-    public enum UpdateStatus { Checking, UpToDate, Available, Unknown }
-
-    private async Task CheckForUpdateSilentlyAsync()
+    public void AssignCategory(AccountItemViewModel item, string category)
     {
-        try
-        {
-            var info = await new UpdateService().CheckAsync();
-            _cachedUpdate = info;
-            OnUi(() =>
-            {
-                if (info.UpdateAvailable)
-                {
-                    UpdateState = UpdateStatus.Available;
-                    UpdateButtonText = $"Update to {info.LatestTag}";
-                    UpdateTooltip = $"Update available: {info.LatestTag} (installed v{info.Current.ToString(3)})";
-                }
-                else
-                {
-                    UpdateState = UpdateStatus.UpToDate;
-                    UpdateButtonText = "Check for update";
-                    UpdateTooltip = $"Up to date (v{info.Current.ToString(3)})";
-                }
-            });
-        }
-        catch
-        {
-            OnUi(() =>
-            {
-                UpdateState = UpdateStatus.Unknown;
-                UpdateTooltip = "Couldn't check for updates";
-            });
-        }
+        item.Model.Group = category == AllCategories ? "" : category;
+        _svc.Accounts.Update(item.Model);
+        Status = $"Moved {item.Label} to {(string.IsNullOrEmpty(item.Model.Group) ? "Default" : category)}.";
     }
 
-    // --- account list ------------------------------------------------
+    partial void OnSelectedCategoryChanged(string value) => AccountsView.Refresh();
+
+    // --- account list -------------------------------------------
 
     private void ReloadAccounts()
     {
         var selectedId = SelectedAccount?.Id;
         Accounts.Clear();
         foreach (var acc in _svc.Accounts.Accounts)
-        {
-            var vm = new AccountItemViewModel(acc) { Health = _svc.KeepAlive.GetHealth(acc.Id) };
-            Accounts.Add(vm);
-        }
+            Accounts.Add(new AccountItemViewModel(acc) { Health = _svc.KeepAlive.GetHealth(acc.Id) });
         AccountsView.Refresh();
         if (selectedId is not null)
             SelectedAccount = Accounts.FirstOrDefault(a => a.Id == selectedId);
@@ -146,9 +140,11 @@ public partial class MainViewModel : ObservableObject
     private bool FilterAccount(object o)
     {
         if (o is not AccountItemViewModel vm) return false;
+        if (SelectedCategory != AllCategories &&
+            !vm.Group.Equals(SelectedCategory, StringComparison.OrdinalIgnoreCase))
+            return false;
         if (string.IsNullOrWhiteSpace(SearchText)) return true;
-        return vm.Label.Contains(SearchText, StringComparison.OrdinalIgnoreCase)
-               || vm.Group.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
+        return vm.Label.Contains(SearchText, StringComparison.OrdinalIgnoreCase);
     }
 
     partial void OnSearchTextChanged(string value) => AccountsView.Refresh();
@@ -159,30 +155,175 @@ public partial class MainViewModel : ObservableObject
         {
             PlaceIdInput = value.Model.SavedPlaceId;
             JobIdInput = value.Model.SavedJobId;
+            if (JoinModeValue == JoinMode.Favorites) _ = LoadFavoritesAsync();
         }
         JoinCommand.NotifyCanExecuteChanged();
         RemoveAccountCommand.NotifyCanExecuteChanged();
         RefreshAccountCommand.NotifyCanExecuteChanged();
-        OpenServerBrowserCommand.NotifyCanExecuteChanged();
         OpenUtilitiesCommand.NotifyCanExecuteChanged();
         OpenInBrowserCommand.NotifyCanExecuteChanged();
-        CopyCookieCommand.NotifyCanExecuteChanged();
+        LoadFavoritesCommand.NotifyCanExecuteChanged();
     }
 
-    // --- commands ---------------------------------------------------
+    // --- join: mode switching -----------------------------------
+
+    [RelayCommand]
+    private void SetJoinMode(string mode)
+    {
+        JoinModeValue = Enum.Parse<JoinMode>(mode);
+        if (JoinModeValue == JoinMode.Favorites && SelectedAccount is not null && FavoriteGames.Count == 0)
+            _ = LoadFavoritesAsync();
+    }
+
+    private bool CanJoin() =>
+        SelectedAccount is not null && !Busy && GameLinkParser.TryParse(PlaceIdInput, out _);
+
+    partial void OnPlaceIdInputChanged(string value) => JoinCommand.NotifyCanExecuteChanged();
+
+    [RelayCommand(CanExecute = nameof(CanJoin))]
+    private async Task JoinAsync()
+    {
+        var acc = SelectedAccount!.Model;
+        if (!GameLinkParser.TryParse(PlaceIdInput, out var link)) { Status = "Couldn't find a place id in that."; return; }
+
+        JoinRequest join = link.JobId is null && link.PrivateServerLinkCode is null && link.AccessCode is null
+                           && !string.IsNullOrWhiteSpace(JobIdInput)
+            ? JoinRequest.Server(link.PlaceId, JobIdInput.Trim())
+            : link.ToJoinRequest();
+
+        PlaceIdInput = link.PlaceId.ToString();
+        acc.SavedPlaceId = link.PlaceId.ToString();
+        acc.SavedJobId = join.JobId ?? "";
+        acc.LastUsed = DateTimeOffset.Now;
+        _svc.Accounts.Update(acc);
+        await LaunchAsync(acc, join);
+    }
+
+    // --- join: favorites --------------------------------------
+
+    private bool HasSelection() => SelectedAccount is not null;
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task LoadFavoritesAsync()
+    {
+        var acc = SelectedAccount?.Model;
+        if (acc is null || acc.UserId == 0) { Status = "Refresh the account first."; return; }
+        try
+        {
+            Busy = true;
+            Status = "Loading favorites…";
+            var games = new GamesClient(_svc.Pool.Get(acc));
+            var list = await games.GetFavoriteGamesAsync(acc.UserId);
+            FavoriteGames.Clear();
+            foreach (var g in list) FavoriteGames.Add(g);
+            Status = $"{FavoriteGames.Count} favorite games.";
+        }
+        catch (Exception ex) { Status = "Favorites failed: " + ex.Message; }
+        finally { Busy = false; }
+    }
+
+    [RelayCommand]
+    private async Task JoinFavoriteAsync(GameSummary? game)
+    {
+        game ??= SelectedFavorite;
+        if (game is null || SelectedAccount is null || game.PlaceId == 0) return;
+        await LaunchAsync(SelectedAccount.Model, JoinRequest.Place(game.PlaceId));
+    }
+
+    // --- join: player finder ---------------------------------
+
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task FindPlayersAsync()
+    {
+        var acc = SelectedAccount?.Model;
+        if (acc is null) return;
+        FinderResults.Clear();
+        var names = FinderQuery.Split(new[] { ',', ' ', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries);
+        if (names.Length == 0) { Status = "Enter usernames or IDs."; return; }
+
+        try
+        {
+            Busy = true;
+            var games = new GamesClient(_svc.Pool.Get(acc));
+            var ids = new List<long>();
+            foreach (var n in names)
+                if (long.TryParse(n, out var raw)) ids.Add(raw);
+                else { var r = await games.ResolveUsernameAsync(n); if (r is not null) ids.Add(r.Value); }
+
+            if (ids.Count == 0) { Status = "No users resolved."; return; }
+
+            foreach (var p in await games.FindPlayersAsync(ids))
+            {
+                bool joinable = p is { PresenceType: 2, PlaceId: > 0 } && !string.IsNullOrEmpty(p.GameId);
+                string where = p.PresenceType switch
+                {
+                    0 => "offline",
+                    1 => "online (website)",
+                    2 => joinable ? $"in game — {p.LastLocation}" : "in game (can't join)",
+                    3 => "in Studio",
+                    _ => p.LastLocation ?? "?",
+                };
+                FinderResults.Add(new PlayerFindResult(p.UserId, $"{p.UserId} — {where}", p.PlaceId, p.GameId, joinable));
+            }
+            Status = $"{FinderResults.Count} result(s).";
+        }
+        catch (Exception ex) { Status = "Finder failed: " + ex.Message; }
+        finally { Busy = false; }
+    }
+
+    [RelayCommand]
+    private async Task JoinFoundPlayerAsync(PlayerFindResult? r)
+    {
+        if (r is null || !r.Joinable || SelectedAccount is null || r.PlaceId is not { } place || r.GameId is not { } job) return;
+        await LaunchAsync(SelectedAccount.Model, JoinRequest.Server(place, job));
+    }
+
+    // --- launching & instances -------------------------------
+
+    public async Task LaunchAsync(Account acc, JoinRequest join)
+    {
+        try
+        {
+            Busy = true;
+            Status = $"Launching {acc.DisplayLabel}…";
+            var result = await _svc.Launcher.LaunchAsync(acc, join);
+            var inst = _svc.Instances.Register(acc, join, result.Process, result.BrowserTrackerId);
+            OnUi(() => Instances.Add(new InstanceItemViewModel(inst)));
+            Status = $"Launched {acc.DisplayLabel}.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Launch failed: " + ex.Message;
+            MessageBox.Show(ex.Message, "Launch failed", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { Busy = false; }
+    }
+
+    [RelayCommand]
+    private void LeaveInstance(InstanceItemViewModel? item)
+    {
+        if (item is null) return;
+        _svc.Instances.Terminate(item.Model);
+        Instances.Remove(item);
+        Status = $"Closed {item.AccountLabel}.";
+    }
+
+    [RelayCommand]
+    private void TerminateAll()
+    {
+        _svc.Instances.TerminateAll();
+        Instances.Clear();
+        Status = "Closed all instances.";
+    }
+
+    // --- account commands -----------------------------------
 
     [RelayCommand]
     private void AddAccount()
     {
         var win = new AddAccountWindow(_svc) { Owner = Application.Current.MainWindow };
-        if (win.ShowDialog() == true)
-        {
-            ReloadAccounts();
-            Status = "Account added.";
-        }
+        if (win.ShowDialog() == true) { RebuildCategories(); ReloadAccounts(); Status = "Account added."; }
     }
-
-    private bool HasSelection() => SelectedAccount is not null;
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void RemoveAccount()
@@ -205,87 +346,6 @@ public partial class MainViewModel : ObservableObject
         Status = health == AccountHealth.Valid ? "Session OK." : "Session needs a re-login.";
     }
 
-    private bool CanJoin() =>
-        SelectedAccount is not null && !Busy && GameLinkParser.TryParse(PlaceIdInput, out _);
-
-    partial void OnPlaceIdInputChanged(string value) => JoinCommand.NotifyCanExecuteChanged();
-
-    [RelayCommand(CanExecute = nameof(CanJoin))]
-    private async Task JoinAsync()
-    {
-        var acc = SelectedAccount!.Model;
-        if (!GameLinkParser.TryParse(PlaceIdInput, out var link))
-        {
-            Status = "Couldn't find a place id in that.";
-            return;
-        }
-
-        // A pasted link's own server info wins; otherwise use the Job ID box.
-        JoinRequest join = link.JobId is null && link.PrivateServerLinkCode is null && link.AccessCode is null
-                           && !string.IsNullOrWhiteSpace(JobIdInput)
-            ? JoinRequest.Server(link.PlaceId, JobIdInput.Trim())
-            : link.ToJoinRequest();
-
-        // Normalise the box to the resolved id so it's clean next time.
-        PlaceIdInput = link.PlaceId.ToString();
-        acc.SavedPlaceId = link.PlaceId.ToString();
-        acc.SavedJobId = join.JobId ?? "";
-        acc.LastUsed = DateTimeOffset.Now;
-        _svc.Accounts.Update(acc);
-
-        await LaunchAsync(acc, join);
-    }
-
-    public async Task LaunchAsync(Account acc, JoinRequest join)
-    {
-        try
-        {
-            Busy = true;
-            Status = $"Launching {acc.DisplayLabel}…";
-            var result = await _svc.Launcher.LaunchAsync(acc, join);
-            var inst = _svc.Instances.Register(acc, join, result.Process, result.BrowserTrackerId);
-            OnUi(() => Instances.Add(new InstanceItemViewModel(inst)));
-            Status = $"Launched {acc.DisplayLabel}.";
-        }
-        catch (Exception ex)
-        {
-            Status = "Launch failed: " + ex.Message;
-            MessageBox.Show(ex.Message, "Launch failed", MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
-        finally
-        {
-            Busy = false;
-        }
-    }
-
-    [RelayCommand]
-    private void LeaveInstance(InstanceItemViewModel? item)
-    {
-        if (item is null) return;
-        _svc.Instances.Terminate(item.Model);
-        Instances.Remove(item);
-        Status = $"Closed {item.AccountLabel}.";
-    }
-
-    [RelayCommand]
-    private void TerminateAll()
-    {
-        _svc.Instances.TerminateAll();
-        Instances.Clear();
-        Status = "Closed all instances.";
-    }
-
-    [RelayCommand(CanExecute = nameof(HasSelection))]
-    private void OpenServerBrowser()
-    {
-        long placeId = GameLinkParser.TryParse(PlaceIdInput, out var link) ? link.PlaceId : 0;
-        var win = new ServerBrowserWindow(_svc, SelectedAccount!.Model, placeId, this)
-        {
-            Owner = Application.Current.MainWindow
-        };
-        win.Show();
-    }
-
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void OpenUtilities()
     {
@@ -300,28 +360,9 @@ public partial class MainViewModel : ObservableObject
         win.Show();
     }
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
-    private void CopyCookie()
-    {
-        Clipboard.SetText(SelectedAccount!.Model.SecurityToken);
-        Status = "Cookie copied to clipboard.";
-    }
+    // --- reorder (drag) ------------------------------------
 
-    [RelayCommand]
-    private async Task CheckForUpdateAsync()
-    {
-        var win = new UpdateWindow(_cachedUpdate) { Owner = Application.Current.MainWindow };
-        win.ShowDialog();
-        await CheckForUpdateSilentlyAsync();
-    }
-
-    [RelayCommand]
-    private void OpenSettings()
-    {
-        var win = new SettingsWindow(_svc) { Owner = Application.Current.MainWindow };
-        win.ShowDialog();
-        ThemeManager.Apply(_svc.Settings.Current.ThemeName);
-    }
+    public void PersistOrder() => _svc.Accounts.Reorder(Accounts.Select(a => a.Id).ToList());
 
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void MoveUp() => Move(-1);
@@ -336,12 +377,131 @@ public partial class MainViewModel : ObservableObject
         int j = i + delta;
         if (j < 0 || j >= Accounts.Count) return;
         Accounts.Move(i, j);
-        _svc.Accounts.Reorder(Accounts.Select(a => a.Id).ToList());
+        PersistOrder();
     }
 
-    public void ReorderFromView(IReadOnlyList<Guid> orderedIds) => _svc.Accounts.Reorder(orderedIds);
+    // --- theme -------------------------------------------
 
-    // --- helpers --------------------------------------------------
+    private static readonly Brush LightBg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+    private static readonly Brush LightFg = new SolidColorBrush(Color.FromRgb(0x14, 0x16, 0x1A));
+    private static readonly Brush DarkBg = new SolidColorBrush(Color.FromRgb(0x1E, 0x1F, 0x22));
+    private static readonly Brush DarkFg = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+
+    private void UpdateThemeToggle()
+    {
+        bool currentlyLight = _svc.Settings.Current.ThemeName == "Light";
+        ThemeToggleText = currentlyLight ? "Dark theme" : "Light theme";
+        ThemeToggleBackground = currentlyLight ? DarkBg : LightBg;
+        ThemeToggleForeground = currentlyLight ? DarkFg : LightFg;
+    }
+
+    [RelayCommand]
+    private void ToggleTheme()
+    {
+        var s = _svc.Settings.Current;
+        s.ThemeName = s.ThemeName == "Light" ? "Dark" : "Light";
+        _svc.Settings.Save();
+        ThemeManager.Apply(s.ThemeName);
+        TitleBarTheme.ApplyToOpenWindows();
+        UpdateThemeToggle();
+    }
+
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        var win = new SettingsWindow(_svc) { Owner = Application.Current.MainWindow };
+        win.ShowDialog();
+        ThemeManager.Apply(_svc.Settings.Current.ThemeName);
+        UpdateThemeToggle();
+    }
+
+    // --- update -----------------------------------------
+
+    public enum UpdateStatus { Checking, UpToDate, Available, Unknown }
+
+    [RelayCommand]
+    private async Task CheckForUpdateAsync()
+    {
+        UpdatePopupOpen = !UpdatePopupOpen;
+        if (UpdatePopupOpen) { RenderUpdate(_cachedUpdate); await CheckForUpdateSilentlyAsync(); }
+    }
+
+    [RelayCommand]
+    private void DismissUpdate() => UpdatePopupOpen = false;
+
+    [RelayCommand]
+    private async Task InstallUpdateAsync()
+    {
+        if (_cachedUpdate is null || !_cachedUpdate.UpdateAvailable) return;
+        try
+        {
+            UpdateInstalling = true;
+            UpdateHeadline = "Downloading…";
+            var progress = new Progress<double>(p => OnUi(() =>
+            {
+                UpdateProgress = p;
+                UpdateHeadline = p >= 1 ? "Installing…" : $"Downloading… {p:P0}";
+            }));
+            await new UpdateService().DownloadAndApplyAsync(_cachedUpdate, progress);
+            UpdateHeadline = "Restarting…";
+            await Task.Delay(400);
+            ((App)Application.Current).ShutdownApp();
+        }
+        catch (Exception ex)
+        {
+            UpdateInstalling = false;
+            UpdateHeadline = "Update failed: " + ex.Message;
+        }
+    }
+
+    private async Task CheckForUpdateSilentlyAsync()
+    {
+        try
+        {
+            var info = await new UpdateService().CheckAsync();
+            _cachedUpdate = info;
+            OnUi(() =>
+            {
+                if (info.UpdateAvailable)
+                {
+                    UpdateState = UpdateStatus.Available;
+                    UpdateButtonText = $"Update to {info.LatestTag}";
+                    UpdateTooltip = $"Update available: {info.LatestTag} (installed v{info.Current.ToString(3)})";
+                }
+                else
+                {
+                    UpdateState = UpdateStatus.UpToDate;
+                    UpdateButtonText = "Check for update";
+                    UpdateTooltip = $"Up to date (v{info.Current.ToString(3)})";
+                }
+                if (UpdatePopupOpen) RenderUpdate(info);
+            });
+        }
+        catch
+        {
+            OnUi(() =>
+            {
+                UpdateState = UpdateStatus.Unknown;
+                UpdateTooltip = "Couldn't check for updates";
+                if (UpdatePopupOpen) { UpdateHeadline = "Couldn't check for updates"; UpdateCanInstall = false; }
+            });
+        }
+    }
+
+    private void RenderUpdate(UpdateInfo? info)
+    {
+        if (info is null) { UpdateHeadline = "Checking…"; UpdateInstalledText = $"v{UpdateService.CurrentVersion.ToString(3)}"; UpdateLatestText = "…"; return; }
+        UpdateInstalledText = $"v{info.Current.ToString(3)}";
+        UpdateLatestText = info.LatestTag;
+        UpdateHasNotes = !string.IsNullOrWhiteSpace(info.Notes);
+        UpdateNotes = info.Notes.Trim();
+        UpdateCanInstall = info.UpdateAvailable;
+        UpdateHeadline = info.UpdateAvailable ? "Update available"
+            : info.Latest > info.Current ? "Update available (no exe yet — try shortly)"
+            : "You're up to date";
+    }
+
+    // --- helpers --------------------------------------
 
     private void SyncInstance(RobloxInstance inst)
     {
@@ -353,8 +513,7 @@ public partial class MainViewModel : ObservableObject
             acc.IsInGame = Instances.Any(x => x.Model.AccountId == inst.AccountId
                                               && x.Model.State is InstanceState.Running or InstanceState.Launching);
 
-        if (inst.State is InstanceState.Disconnected
-            && _svc.Settings.Current.AutoRelaunchOnDisconnect)
+        if (inst.State is InstanceState.Disconnected && _svc.Settings.Current.AutoRelaunchOnDisconnect)
         {
             var account = _svc.Accounts.FindById(inst.AccountId);
             if (account is not null)
@@ -367,3 +526,5 @@ public partial class MainViewModel : ObservableObject
 
     private static void OnUi(Action a) => Application.Current.Dispatcher.Invoke(a);
 }
+
+public sealed record PlayerFindResult(long UserId, string Display, long? PlaceId, string? GameId, bool Joinable);

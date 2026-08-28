@@ -30,6 +30,9 @@ public sealed class AppSettings
 
     public string ThemeName { get; set; } = "Dark";
 
+    /// <summary>User-created account categories (kept even when no account uses one yet).</summary>
+    public List<string> Categories { get; set; } = new();
+
     /// <summary>Optional extra passphrase layer on top of DPAPI. Empty = DPAPI only.</summary>
     public bool UsePassphrase { get; set; } = false;
 }

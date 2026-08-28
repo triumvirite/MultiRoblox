@@ -2,6 +2,11 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
+    <!-- Fixed on-colour text: elements on a blue (accent) fill always use dark-theme (white) text;
+         elements on a red (danger) fill always use light-theme (near-black) text. Contrast > theme. -->
+    <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="OnDanger" Color="#14161A"/>
+
     <!-- ============ base typography ============ -->
 
     <Style TargetType="{x:Type Window}">
@@ -12,8 +17,10 @@
         <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
     </Style>
 
+    <!-- No Foreground here on purpose: let TextBlocks inherit TextElement.Foreground from their
+         container (Window = theme text, a Button = its own on-colour). An explicit setter would
+         override that inheritance and give buttons the wrong-contrast text. -->
     <Style TargetType="{x:Type TextBlock}">
-        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
         <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
     </Style>
 
@@ -47,13 +54,14 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type TextBox}">
                     <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"
+                            Padding="{TemplateBinding Padding}">
                         <Grid>
                             <TextBlock x:Name="Placeholder" Text="{TemplateBinding Tag}"
                                        Foreground="{DynamicResource SubtleText}" IsHitTestVisible="False"
                                        VerticalAlignment="Center" HorizontalAlignment="Left"
-                                       Margin="{TemplateBinding Padding}" Visibility="Collapsed"/>
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                                       Visibility="Collapsed"/>
+                            <ScrollViewer x:Name="PART_ContentHost"/>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -107,12 +115,14 @@
 
     <Style x:Key="AccentButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{DynamicResource Accent}"/>
-        <Setter Property="Foreground" Value="{DynamicResource AccentText}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+        <Setter Property="TextElement.Foreground" Value="{StaticResource OnAccent}"/>
     </Style>
 
     <Style x:Key="DangerButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{DynamicResource Danger}"/>
-        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="Foreground" Value="{StaticResource OnDanger}"/>
+        <Setter Property="TextElement.Foreground" Value="{StaticResource OnDanger}"/>
     </Style>
 
     <!-- ============ list box ============ -->
@@ -140,7 +150,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource Accent}"/>
-                            <Setter Property="TextElement.Foreground" Value="{DynamicResource AccentText}"/>
+                            <Setter Property="TextElement.Foreground" Value="{StaticResource OnAccent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -174,7 +184,7 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="b" Property="Background" Value="{DynamicResource Accent}"/>
-                            <Setter Property="TextElement.Foreground" Value="{DynamicResource AccentText}"/>
+                            <Setter Property="TextElement.Foreground" Value="{StaticResource OnAccent}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

@@ -12,6 +12,9 @@ public partial class AccountItemViewModel : ObservableObject
     [ObservableProperty] private AccountHealth _health;
     [ObservableProperty] private bool _isInGame;
 
+    /// <summary>True while this row is the one being dragged (rendered semi-transparent).</summary>
+    [ObservableProperty] private bool _isDragging;
+
     public AccountItemViewModel(Account model)
     {
         Model = model;

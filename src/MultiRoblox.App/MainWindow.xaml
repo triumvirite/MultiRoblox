@@ -16,6 +16,35 @@
         <app:NullToBoolConverter x:Key="NotNull"/>
         <app:UpdateStatusToBrushConverter x:Key="UpdateBrush"/>
         <app:EqualsToVisibilityConverter x:Key="EqVis"/>
+
+        <!-- join-mode toggle buttons: accent fill when their mode is active -->
+        <Style x:Key="ModeManual" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding JoinModeValue}" Value="Manual">
+                    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                    <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ModeFavorites" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding JoinModeValue}" Value="Favorites">
+                    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                    <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="ModeFinder" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding JoinModeValue}" Value="PlayerFinder">
+                    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                    <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid Background="{DynamicResource Bg}">
@@ -24,22 +53,23 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Sidebar -->
+        <!-- ===================== Sidebar ===================== -->
         <Border Grid.Column="0" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
             <DockPanel>
-                <Grid DockPanel.Dock="Top" Margin="10,10,10,6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
+                <StackPanel DockPanel.Dock="Top" Margin="10,10,10,6">
                     <TextBlock Text="Accounts" Style="{StaticResource H1}"/>
-                    <TextBox Grid.Row="1" Margin="0,8,0,0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Tag="Search"/>
-                </Grid>
+                    <DockPanel Margin="0,8,0,0">
+                        <Button DockPanel.Dock="Right" Content="+" Width="30" Margin="6,0,0,0"
+                                Command="{Binding NewCategoryCommand}" ToolTip="Create a new category"/>
+                        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"/>
+                    </DockPanel>
+                    <TextBox Margin="0,8,0,0" Tag="Search"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
 
-                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="10" HorizontalAlignment="Stretch">
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="10">
                     <Button Content="Add" Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}" Width="70"/>
-                    <Button Content="Remove" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="70"/>
+                    <Button Content="Remove" Style="{StaticResource DangerButton}" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="70"/>
                     <Button Content="↑" Command="{Binding MoveUpCommand}" Margin="6,0,0,0" Width="30"/>
                     <Button Content="↓" Command="{Binding MoveDownCommand}" Margin="4,0,0,0" Width="30"/>
                 </StackPanel>
@@ -49,22 +79,23 @@
                          SelectedItem="{Binding SelectedAccount}"
                          AllowDrop="True"
                          PreviewMouseLeftButtonDown="AccountList_PreviewMouseLeftButtonDown"
-                         MouseMove="AccountList_MouseMove"
+                         PreviewMouseMove="AccountList_MouseMove"
+                         DragOver="AccountList_DragOver"
                          Drop="AccountList_Drop"
+                         ContextMenuOpening="AccountList_ContextMenuOpening"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.GroupStyle>
-                        <GroupStyle>
-                            <GroupStyle.HeaderTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Subtle}"
-                                               Margin="8,10,0,4" FontWeight="SemiBold"/>
-                                </DataTemplate>
-                            </GroupStyle.HeaderTemplate>
-                        </GroupStyle>
-                    </ListBox.GroupStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:AccountItemViewModel}">
                             <Grid Margin="4,6">
+                                <Grid.Style>
+                                    <Style TargetType="Grid">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                                                <Setter Property="Opacity" Value="0.35"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
@@ -82,24 +113,64 @@
             </DockPanel>
         </Border>
 
-        <!-- Main pane -->
+        <!-- ===================== Main pane ===================== -->
         <DockPanel Grid.Column="1">
             <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
                 <Grid Margin="16,10">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="{Binding SelectedAccount.Label, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
-                    </StackPanel>
+                    <TextBlock Text="{Binding SelectedAccount.Label, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="⚠" Margin="0,0,6,0" VerticalAlignment="Center" FontWeight="Bold"
-                                           Foreground="{DynamicResource Warn}"
-                                           Visibility="{Binding UpdateState, Converter={StaticResource EqVis}, ConverterParameter=Available}"/>
-                                <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
-                                         Fill="{Binding UpdateState, Converter={StaticResource UpdateBrush}}"/>
-                                <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                        <Grid>
+                            <Button Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⚠" Margin="0,0,6,0" VerticalAlignment="Center" FontWeight="Bold"
+                                               Foreground="{DynamicResource Warn}"
+                                               Visibility="{Binding UpdateState, Converter={StaticResource EqVis}, ConverterParameter=Available}"/>
+                                    <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                             Fill="{Binding UpdateState, Converter={StaticResource UpdateBrush}}"/>
+                                    <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <!-- update dropdown, anchored under the button -->
+                            <Popup IsOpen="{Binding UpdatePopupOpen, Mode=TwoWay}" StaysOpen="False"
+                                   PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType=Grid}}"
+                                   Placement="Bottom" HorizontalOffset="0" VerticalOffset="6" AllowsTransparency="True">
+                                <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1" CornerRadius="8" Width="340" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding UpdateHeadline}" Style="{StaticResource H1}" FontSize="16"/>
+                                        <Grid Margin="0,10,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                            <TextBlock Text="Installed" Style="{StaticResource Subtle}" Margin="0,0,14,3"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding UpdateInstalledText}" Margin="0,0,0,3"/>
+                                            <TextBlock Grid.Row="1" Text="Latest" Style="{StaticResource Subtle}" Margin="0,0,14,0"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdateLatestText}"/>
+                                        </Grid>
+                                        <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="8" Margin="0,10,0,0"
+                                                MaxHeight="130" Visibility="{Binding UpdateHasNotes, Converter={StaticResource BoolVis}}">
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                                <TextBlock Text="{Binding UpdateNotes}" TextWrapping="Wrap" Style="{StaticResource Subtle}"/>
+                                            </ScrollViewer>
+                                        </Border>
+                                        <ProgressBar Height="5" Margin="0,10,0,0" Minimum="0" Maximum="1"
+                                                     Value="{Binding UpdateProgress}"
+                                                     Visibility="{Binding UpdateInstalling, Converter={StaticResource BoolVis}}"
+                                                     Foreground="{DynamicResource Accent}" Background="{DynamicResource Surface2}"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                                            <Button Content="Update now" Style="{StaticResource AccentButton}"
+                                                    Command="{Binding InstallUpdateCommand}"
+                                                    IsEnabled="{Binding UpdateCanInstall}"
+                                                    Visibility="{Binding UpdateCanInstall, Converter={StaticResource BoolVis}}"/>
+                                            <Button Content="Close" Margin="8,0,0,0" Command="{Binding DismissUpdateCommand}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
                         <Button Margin="8,0,0,0" Background="{Binding ThemeToggleBackground}"
                                 Command="{Binding ToggleThemeCommand}" ToolTip="Switch the app to this theme">
                             <TextBlock Text="{Binding ThemeToggleText}" Foreground="{Binding ThemeToggleForeground}"/>
@@ -119,32 +190,85 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Actions for the selected account -->
+                <!-- ============ Join panel ============ -->
                 <StackPanel Margin="16" IsEnabled="{Binding SelectedAccount, Converter={StaticResource NotNull}}">
-                    <TextBlock Text="Join a game" Style="{StaticResource Subtle}" FontWeight="SemiBold"/>
-                    <Grid Margin="0,6,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Manual" Style="{StaticResource ModeManual}"
+                                Command="{Binding SetJoinModeCommand}" CommandParameter="Manual"/>
+                        <Button Content="Favorites" Style="{StaticResource ModeFavorites}"
+                                Command="{Binding SetJoinModeCommand}" CommandParameter="Favorites"/>
+                        <Button Content="Player finder" Style="{StaticResource ModeFinder}"
+                                Command="{Binding SetJoinModeCommand}" CommandParameter="PlayerFinder"/>
+                    </StackPanel>
+
+                    <!-- Manual -->
+                    <Grid Margin="0,12,0,0"
+                          Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Manual}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="2*"/>
                             <ColumnDefinition Width="2*"/>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID or game link"/>
                         <TextBox Grid.Column="1" Margin="8,0,0,0" Text="{Binding JobIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Job ID (optional)"/>
-                        <Button Grid.Column="2" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}"
-                                Command="{Binding JoinCommand}"/>
-                        <Button Grid.Column="3" Margin="8,0,0,0" Content="Servers…" Command="{Binding OpenServerBrowserCommand}"/>
+                        <Button Grid.Column="2" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
                     </Grid>
 
-                    <WrapPanel Margin="0,12,0,0">
+                    <!-- Favorites -->
+                    <DockPanel Margin="0,12,0,0" Height="150"
+                               Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Favorites}">
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinFavoriteCommand}"/>
+                            <Button Content="Reload" Margin="8,0,0,0" Command="{Binding LoadFavoritesCommand}"/>
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding FavoriteGames}" SelectedItem="{Binding SelectedFavorite}"
+                                 Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                 MouseDoubleClick="Favorite_DoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <!-- Player finder -->
+                    <DockPanel Margin="0,12,0,0" Height="180"
+                               Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=PlayerFinder}">
+                        <Grid DockPanel.Dock="Top">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding FinderQuery, UpdateSourceTrigger=PropertyChanged}" Tag="usernames or IDs, comma-separated"/>
+                            <Button Grid.Column="1" Content="Find" Margin="8,0,0,0" Style="{StaticResource AccentButton}" Command="{Binding FindPlayersCommand}"/>
+                        </Grid>
+                        <ListBox Margin="0,8,0,0" ItemsSource="{Binding FinderResults}"
+                                 Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Join" Padding="8,2"
+                                                IsEnabled="{Binding Joinable}"
+                                                Command="{Binding DataContext.JoinFoundPlayerCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                CommandParameter="{Binding}"/>
+                                        <TextBlock Text="{Binding Display}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+
+                    <WrapPanel Margin="0,14,0,0">
                         <Button Content="Refresh session" Command="{Binding RefreshAccountCommand}" Margin="0,0,8,8"/>
                         <Button Content="Utilities" Command="{Binding OpenUtilitiesCommand}" Margin="0,0,8,8"/>
                         <Button Content="Open in browser" Command="{Binding OpenInBrowserCommand}" Margin="0,0,8,8"/>
+                        <!-- Copy cookie: disabled for now
                         <Button Content="Copy cookie" Command="{Binding CopyCookieCommand}" Margin="0,0,8,8"/>
+                        -->
                     </WrapPanel>
                 </StackPanel>
 
-                <!-- Running instances -->
+                <!-- ============ Running instances ============ -->
                 <DockPanel Grid.Row="1" Margin="16,0,16,16">
                     <Grid DockPanel.Dock="Top">
                         <TextBlock Text="Running instances" Style="{StaticResource Subtle}" FontWeight="SemiBold"/>
