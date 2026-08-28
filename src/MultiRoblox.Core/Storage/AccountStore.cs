@@ -60,6 +60,13 @@ public sealed class AccountStore
 
         byte[] json = _protector.Unprotect(blob);
         var loaded = JsonSerializer.Deserialize<List<Account>>(json, JsonOpts) ?? new();
+        foreach (var a in loaded)
+        {
+            // migrate the old single Group field into the Categories list
+            if (a.Categories.Count == 0 && !string.IsNullOrWhiteSpace(a.Group))
+                a.Categories.Add(a.Group.Trim());
+            a.Group = "";
+        }
         _accounts.AddRange(loaded);
         Normalize();
         Log?.Invoke($"loaded {_accounts.Count} account(s) from {_path}");

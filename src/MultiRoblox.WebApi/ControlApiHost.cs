@@ -85,7 +85,7 @@ public sealed class ControlApiHost : IAsyncDisposable
         app.MapGet("/GetAccounts", () =>
             Results.Json(_accounts.Accounts.Select(a => new
             {
-                a.Username, a.DisplayName, a.UserId, a.Group, a.Note
+                a.Username, a.DisplayName, a.UserId, a.Categories, a.Note
             })));
 
         app.MapGet("/GetCookie", (string account) =>

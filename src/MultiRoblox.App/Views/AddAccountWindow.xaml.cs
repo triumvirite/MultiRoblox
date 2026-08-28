@@ -10,12 +10,18 @@ namespace MultiRoblox.App.Views;
 public partial class AddAccountWindow : Window
 {
     private readonly AppServices _svc;
+    private readonly Account? _relogin;
     private bool _adding;
 
-    public AddAccountWindow(AppServices svc)
+    /// <param name="relogin">When set, the captured cookie replaces this account's session
+    /// instead of adding a new account.</param>
+    public AddAccountWindow(AppServices svc, Account? relogin = null)
     {
         _svc = svc;
+        _relogin = relogin;
         InitializeComponent();
+        if (_relogin is not null)
+            Title = $"Re-login — {_relogin.Username}";
         Loaded += OnLoaded;
     }
 
@@ -68,7 +74,7 @@ public partial class AddAccountWindow : Window
 
     private async Task AddFromTokenAsync(string token, Action<string> status)
     {
-        if (_svc.Accounts.Accounts.Any(a => a.SecurityToken == token))
+        if (_relogin is null && _svc.Accounts.Accounts.Any(a => a.SecurityToken == token))
         {
             status("That account is already added.");
             return;
@@ -78,15 +84,34 @@ public partial class AddAccountWindow : Window
         try
         {
             var user = await client.ValidateAsync();
-            var account = new Account
+
+            if (_relogin is not null)
             {
-                Username = user.Name,
-                DisplayName = user.DisplayName,
-                UserId = user.Id,
-                SecurityToken = client.CurrentToken,
-            };
-            _svc.Accounts.Add(account);
-            status($"Added {user.Name}.");
+                if (user.Id != _relogin.UserId)
+                {
+                    status($"That's a different account ({user.Name}). Log in as {_relogin.Username}.");
+                    _adding = false;
+                    return;
+                }
+                _relogin.Username = user.Name;
+                _relogin.DisplayName = user.DisplayName;
+                _relogin.SecurityToken = client.CurrentToken;
+                _svc.Accounts.Update(_relogin);
+                _svc.Pool.Invalidate(_relogin.Id);
+                status($"Re-logged in as {user.Name}.");
+            }
+            else
+            {
+                _svc.Accounts.Add(new Account
+                {
+                    Username = user.Name,
+                    DisplayName = user.DisplayName,
+                    UserId = user.Id,
+                    SecurityToken = client.CurrentToken,
+                });
+                status($"Added {user.Name}.");
+            }
+
             DialogResult = true;
             Close();
         }
