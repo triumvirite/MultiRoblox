@@ -36,7 +36,9 @@ jobs:
           if ($csproj -notmatch '<Version>(\d+)\.(\d+)') { throw "no major.minor <Version> in csproj" }
           $base = "$($Matches[1]).$($Matches[2])"
           git fetch --tags --force --quiet
-          $patch = (git tag -l "v$base.*" | Measure-Object).Count   # v1.1.0 present -> next is v1.1.1
+          # patch = how many v<base>.* tags already exist, so each push in a minor line is +1
+          # (e.g. base 1.2, no tags yet -> v1.2.0; next push -> v1.2.1)
+          $patch = (git tag -l "v$base.*" | Measure-Object).Count
           $version = "$base.$patch"
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
           "tag=v$version"    | Out-File $env:GITHUB_OUTPUT -Append
