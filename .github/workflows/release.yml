@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -36,6 +37,32 @@ jobs:
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
           "tag=v$version"    | Out-File $env:GITHUB_OUTPUT -Append
           Write-Host "version = v$version"
+
+      - name: Build release notes from commits since the last release
+        id: notes
+        shell: pwsh
+        run: |
+          $prev = (git tag -l "v*" --sort=-v:refname | Select-Object -First 1)
+          $range = if ($prev) { "$prev..HEAD" } else { "HEAD" }
+          $subjects = git log $range --no-merges --pretty=format:"%s"
+
+          $bullets = foreach ($s in $subjects) {
+            if ([string]::IsNullOrWhiteSpace($s)) { continue }
+            # split one commit into its listed changes: on ". " and on ", " after a "prefix:"
+            $s = $s -replace '^(Add|Fix|CI|UI|Update)[^:]*:\s*', ''
+            foreach ($part in ($s -split '(?:\.\s+|;\s+|,\s+)')) {
+              $p = $part.Trim().TrimEnd('.')
+              if ($p.Length -ge 4) { "- " + ($p.Substring(0,1).ToUpper() + $p.Substring(1)) }
+            }
+          }
+          $bullets = $bullets | Select-Object -Unique
+          if (-not $bullets) { $bullets = @("- Maintenance build") }
+
+          $body = "### What's new`n" + ($bullets -join "`n") +
+                  "`n`nDownload ``MultiRoblox.exe`` (or the zip) and run it - no install, .NET bundled. Windows 10/11 x64."
+          $body | Out-File notes.md -Encoding utf8
+          "file=notes.md" | Out-File $env:GITHUB_OUTPUT -Append
+          Write-Host $body
 
       - name: Test
         run: dotnet test MultiRoblox.sln -c Debug --nologo
@@ -73,14 +100,13 @@ jobs:
         run: |
           $tag = "${{ steps.ver.outputs.tag }}"
           $zip = "${{ steps.pkg.outputs.zip }}"
-          $sha = "${{ github.sha }}".Substring(0,7)
           $title = "MultiRoblox $tag"
-          $notes = "Built from commit $sha on $(Get-Date -Format 'yyyy-MM-dd HH:mm') UTC.`n`nUnzip and run MultiRoblox.exe - no install, .NET runtime bundled in. Windows 10/11 x64."
+          $notesFile = "${{ steps.notes.outputs.file }}"
 
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release edit $tag --title $title --notes $notes --target ${{ github.sha }} --latest --prerelease=false
+            gh release edit $tag --title $title --notes-file $notesFile --target ${{ github.sha }} --latest --prerelease=false
             gh release upload $tag $zip "${{ steps.pkg.outputs.exe }}" --clobber
           } else {
-            gh release create $tag $zip "${{ steps.pkg.outputs.exe }}" --title $title --notes $notes --target ${{ github.sha }} --latest
+            gh release create $tag $zip "${{ steps.pkg.outputs.exe }}" --title $title --notes-file $notesFile --target ${{ github.sha }} --latest
           }
