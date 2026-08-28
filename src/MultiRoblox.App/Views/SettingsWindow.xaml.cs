@@ -69,18 +69,10 @@ public partial class SettingsWindow : Window
         catch (Exception ex) { MessageBox.Show(ex.Message, "MultiRoblox"); }
     }
 
-    private void OpenData_Click(object sender, RoutedEventArgs e)
+    private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
     {
         Directory.CreateDirectory(AppPaths.Root);
         OpenInExplorer(AppPaths.Root);
-    }
-
-    private void ShowAccountsFile_Click(object sender, RoutedEventArgs e)
-    {
-        if (File.Exists(AppPaths.AccountsFile))
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{AppPaths.AccountsFile}\"") { UseShellExecute = true });
-        else
-            OpenInExplorer(AppPaths.Root);
     }
 
     private void OpenLogs_Click(object sender, RoutedEventArgs e)
