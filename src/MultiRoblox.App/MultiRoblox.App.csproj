@@ -12,7 +12,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <AssemblyName>MultiRoblox</AssemblyName>
-    <Version>1.3.0</Version>
+    <Version>1.4.0</Version>
     <RootNamespace>MultiRoblox.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\ingame.png" />
   </ItemGroup>
 
   <!-- `dotnet publish -c Release` => one self-contained MultiRoblox.exe, no flags needed -->
