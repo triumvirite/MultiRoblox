@@ -18,6 +18,9 @@ public partial class MainWindow : Window
         UpdatePopup.CustomPopupPlacementCallback = CenterUnderTarget;
     }
 
+    private void AccountList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        Vm.SetSelectedAccounts(AccountList.SelectedItems.OfType<AccountItemViewModel>());
+
     /// <summary>Centre the update dropdown horizontally under the button.</summary>
     private static CustomPopupPlacement[] CenterUnderTarget(Size popupSize, Size targetSize, Point offset)
         => new[]
@@ -40,6 +43,9 @@ public partial class MainWindow : Window
     private void AccountList_MouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed || _dragItem is null) return;
+        // let Ctrl/Shift multi-select gestures through instead of starting a reorder drag
+        if ((Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0) return;
+        if (AccountList.SelectedItems.Count > 1) return;
         var diff = _dragStart - e.GetPosition(null);
         if (Math.Abs(diff.X) < SystemParameters.MinimumHorizontalDragDistance &&
             Math.Abs(diff.Y) < SystemParameters.MinimumVerticalDragDistance) return;
@@ -91,21 +97,27 @@ public partial class MainWindow : Window
     {
         var item = ItemUnder(e.OriginalSource);
         if (item is null) { e.Handled = true; return; }
-        Vm.SelectedAccount = item;
+
+        // If the right-clicked row isn't part of the current multi-selection, make it the selection.
+        if (!AccountList.SelectedItems.Contains(item))
+        {
+            AccountList.SelectedItems.Clear();
+            AccountList.SelectedItems.Add(item);
+        }
+        var targets = AccountList.SelectedItems.OfType<AccountItemViewModel>().ToList();
+        string label = targets.Count > 1 ? $"{targets.Count} accounts" : "account";
 
         var menu = new ContextMenu();
-        var addTo = new MenuItem { Header = "Add to category" };
-        addTo.Items.Add(new MenuItem
-        {
-            Header = "Default",
-            Command = new SimpleCommand(() => Vm.AssignCategory(item, MainViewModel.AllCategories)),
-        });
+        var addTo = new MenuItem { Header = $"Move {label} to category" };
+        void AddCat(string display, string value) =>
+            addTo.Items.Add(new MenuItem
+            {
+                Header = display,
+                Command = new SimpleCommand(() => { foreach (var t in targets) Vm.AssignCategory(t, value); }),
+            });
+        AddCat("Default", MainViewModel.AllCategories);
         foreach (var cat in Vm.Categories)
-        {
-            if (cat == MainViewModel.AllCategories) continue;
-            var c = cat;
-            addTo.Items.Add(new MenuItem { Header = c, Command = new SimpleCommand(() => Vm.AssignCategory(item, c)) });
-        }
+            if (cat != MainViewModel.AllCategories) AddCat(cat, cat);
         menu.Items.Add(addTo);
         AccountList.ContextMenu = menu;
     }

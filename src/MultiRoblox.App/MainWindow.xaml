@@ -86,6 +86,8 @@
                 <ListBox x:Name="AccountList" Margin="4" Background="Transparent" BorderThickness="0"
                          ItemsSource="{Binding AccountsView}"
                          SelectedItem="{Binding SelectedAccount}"
+                         SelectionMode="Extended"
+                         SelectionChanged="AccountList_SelectionChanged"
                          AllowDrop="True"
                          PreviewMouseLeftButtonDown="AccountList_PreviewMouseLeftButtonDown"
                          PreviewMouseMove="AccountList_MouseMove"
@@ -132,7 +134,7 @@
         <DockPanel Grid.Column="1">
             <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
                 <Grid Margin="16,10">
-                    <TextBlock Text="{Binding SelectedAccount.Label, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
+                    <TextBlock Text="{Binding SelectionSummary, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Grid>
                             <Button x:Name="UpdateButton" Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}"

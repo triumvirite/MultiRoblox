@@ -25,6 +25,30 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty] private AccountItemViewModel? _selectedAccount;
     [ObservableProperty] private string _selectedCategory = AllCategories;
+
+    /// <summary>All rows currently highlighted in the sidebar (Ctrl / Shift multi-select).</summary>
+    public IReadOnlyList<AccountItemViewModel> SelectedAccounts { get; private set; } = Array.Empty<AccountItemViewModel>();
+
+    public string SelectionSummary =>
+        SelectedAccounts.Count > 1 ? $"{SelectedAccounts.Count} accounts selected"
+        : SelectedAccount?.Label ?? "Select an account";
+
+    public void SetSelectedAccounts(IEnumerable<AccountItemViewModel> items)
+    {
+        SelectedAccounts = items.ToList();
+        if (SelectedAccounts.Count == 1) SelectedAccount = SelectedAccounts[0];
+        else if (SelectedAccounts.Count > 1 && (SelectedAccount is null || !SelectedAccounts.Contains(SelectedAccount)))
+            SelectedAccount = SelectedAccounts[^1];
+        OnPropertyChanged(nameof(SelectionSummary));
+        JoinCommand.NotifyCanExecuteChanged();
+        AddFavoriteCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Accounts an action should target: every selected row, or the single primary one.</summary>
+    private IReadOnlyList<Account> TargetAccounts() =>
+        SelectedAccounts.Count > 0
+            ? SelectedAccounts.Select(a => a.Model).ToList()
+            : SelectedAccount is { } s ? new List<Account> { s.Model } : new List<Account>();
     [ObservableProperty] private string _searchText = "";
     [ObservableProperty] private string _status = "Ready";
     [ObservableProperty] private bool _busy;
@@ -154,6 +178,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedAccountChanged(AccountItemViewModel? value)
     {
+        OnPropertyChanged(nameof(SelectionSummary));
         if (value is not null)
         {
             PlaceIdInput = value.Model.SavedPlaceId;
@@ -174,7 +199,7 @@ public partial class MainViewModel : ObservableObject
     private void SetJoinMode(string mode) => JoinModeValue = Enum.Parse<JoinMode>(mode);
 
     private bool CanJoin() =>
-        SelectedAccount is not null && !Busy && GameLinkParser.TryParse(PlaceIdInput, out _);
+        SelectedAccount is not null && !Busy && !_batchLaunching && GameLinkParser.TryParse(PlaceIdInput, out _);
 
     partial void OnPlaceIdInputChanged(string value)
     {
@@ -185,7 +210,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanJoin))]
     private async Task JoinAsync()
     {
-        var acc = SelectedAccount!.Model;
         if (!GameLinkParser.TryParse(PlaceIdInput, out var link)) { Status = "Couldn't find a place id in that."; return; }
 
         JoinRequest join = link.JobId is null && link.PrivateServerLinkCode is null && link.AccessCode is null
@@ -194,11 +218,39 @@ public partial class MainViewModel : ObservableObject
             : link.ToJoinRequest();
 
         PlaceIdInput = link.PlaceId.ToString();
-        acc.SavedPlaceId = link.PlaceId.ToString();
-        acc.SavedJobId = join.JobId ?? "";
-        acc.LastUsed = DateTimeOffset.Now;
-        _svc.Accounts.Update(acc);
-        await LaunchAsync(acc, join);
+        await LaunchManyAsync(TargetAccounts(), join, savePlace: true);
+    }
+
+    private bool _batchLaunching;
+
+    /// <summary>Launch one or several accounts into the same request, staggered a little.</summary>
+    private async Task LaunchManyAsync(IReadOnlyList<Account> accounts, JoinRequest join, bool savePlace = false)
+    {
+        if (accounts.Count == 0 || _batchLaunching) return;
+        _batchLaunching = true;
+        JoinCommand.NotifyCanExecuteChanged();
+        try
+        {
+            for (int i = 0; i < accounts.Count; i++)
+            {
+                var acc = accounts[i];
+                if (savePlace)
+                {
+                    acc.SavedPlaceId = join.PlaceId.ToString();
+                    acc.SavedJobId = join.JobId ?? "";
+                }
+                acc.LastUsed = DateTimeOffset.Now;
+                _svc.Accounts.Update(acc);
+                await LaunchAsync(acc, join);
+                if (i < accounts.Count - 1) await Task.Delay(2000);   // let Roblox settle between launches
+            }
+            if (accounts.Count > 1) Status = $"Launched {accounts.Count} accounts into place {join.PlaceId}.";
+        }
+        finally
+        {
+            _batchLaunching = false;
+            JoinCommand.NotifyCanExecuteChanged();
+        }
     }
 
     // --- join: favorites (local, app-managed) ----------------
@@ -253,8 +305,8 @@ public partial class MainViewModel : ObservableObject
     private async Task JoinFavoriteAsync(FavoriteGame? game)
     {
         game ??= SelectedFavorite;
-        if (game is null || SelectedAccount is null || game.PlaceId == 0) return;
-        await LaunchAsync(SelectedAccount.Model, JoinRequest.Place(game.PlaceId));
+        if (game is null || game.PlaceId == 0) return;
+        await LaunchManyAsync(TargetAccounts(), JoinRequest.Place(game.PlaceId));
     }
 
     // --- join: recents (games launched through the app) -------
@@ -290,8 +342,8 @@ public partial class MainViewModel : ObservableObject
     private async Task JoinRecentAsync(RecentGame? game)
     {
         game ??= SelectedRecent;
-        if (game is null || SelectedAccount is null || game.PlaceId == 0) return;
-        await LaunchAsync(SelectedAccount.Model, JoinRequest.Place(game.PlaceId));
+        if (game is null || game.PlaceId == 0) return;
+        await LaunchManyAsync(TargetAccounts(), JoinRequest.Place(game.PlaceId));
     }
 
     [RelayCommand]
@@ -347,8 +399,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task JoinFoundPlayerAsync(PlayerFindResult? r)
     {
-        if (r is null || !r.Joinable || SelectedAccount is null || r.PlaceId is not { } place || r.GameId is not { } job) return;
-        await LaunchAsync(SelectedAccount.Model, JoinRequest.Server(place, job));
+        if (r is null || !r.Joinable || r.PlaceId is not { } place || r.GameId is not { } job) return;
+        await LaunchManyAsync(TargetAccounts(), JoinRequest.Server(place, job));
     }
 
     // --- launching & instances -------------------------------
