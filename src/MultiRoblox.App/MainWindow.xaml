@@ -132,9 +132,6 @@
                             <Button x:Name="UpdateButton" Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}"
                                     AutomationProperties.Name="UpdateToggle">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⚠" Margin="0,0,6,0" VerticalAlignment="Center" FontWeight="Bold"
-                                               Foreground="{DynamicResource Warn}"
-                                               Visibility="{Binding UpdateState, Converter={StaticResource EqVis}, ConverterParameter=Available}"/>
                                     <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
                                              Fill="{Binding UpdateState, Converter={StaticResource UpdateBrush}}"/>
                                     <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
