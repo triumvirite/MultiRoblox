@@ -347,22 +347,29 @@
 
                 <!-- ============ Running instances ============ -->
                 <DockPanel Grid.Row="1" Margin="16,0,16,16">
-                    <Grid DockPanel.Dock="Top">
-                        <TextBlock Text="Running instances" Style="{StaticResource Subtle}" FontWeight="SemiBold"/>
-                        <Button Content="Close all" HorizontalAlignment="Right" Style="{StaticResource DangerButton}"
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Running instances" Style="{StaticResource Subtle}" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="1" Content="Close all" Style="{StaticResource DangerButton}"
                                 Command="{Binding TerminateAllCommand}" Padding="10,4"/>
                     </Grid>
-                    <ListView Margin="0,8,0,0" ItemsSource="{Binding Instances}" Background="{DynamicResource Surface}"
-                              BorderBrush="{DynamicResource Border}">
+                    <ListView x:Name="InstancesList" ItemsSource="{Binding Instances}"
+                              Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
+                              SizeChanged="InstancesList_SizeChanged">
                         <ListView.View>
                             <GridView>
-                                <GridViewColumn Header="Account" Width="220" DisplayMemberBinding="{Binding AccountLabel}"/>
-                                <GridViewColumn Header="Where" Width="260" DisplayMemberBinding="{Binding Where}"/>
-                                <GridViewColumn Header="State" Width="110" DisplayMemberBinding="{Binding StateText}"/>
-                                <GridViewColumn Header="" Width="90">
+                                <GridViewColumn x:Name="ColAccount" Header="Account" DisplayMemberBinding="{Binding AccountLabel}"/>
+                                <GridViewColumn x:Name="ColWhere" Header="Where" DisplayMemberBinding="{Binding Where}"/>
+                                <GridViewColumn x:Name="ColState" Header="State" Width="110" DisplayMemberBinding="{Binding StateText}"/>
+                                <GridViewColumn x:Name="ColLeave" Header="" Width="86">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="Leave" Style="{StaticResource DangerButton}" Padding="8,3"
+                                                    HorizontalAlignment="Stretch"
                                                     Command="{Binding DataContext.LeaveInstanceCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
                                                     CommandParameter="{Binding}"/>
                                         </DataTemplate>

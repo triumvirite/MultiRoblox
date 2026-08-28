@@ -32,6 +32,19 @@ public partial class MainWindow : Window
 
     private MainViewModel Vm => (MainViewModel)DataContext;
 
+    // ---------- Running-instances columns flex with the window ----------
+
+    private void InstancesList_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // GridView has no star sizing; split the leftover width (after the fixed State/Leave
+        // columns, borders and scrollbar) 45/55 between Account and Where.
+        double fixedCols = ColState.ActualWidth + ColLeave.ActualWidth;
+        double avail = InstancesList.ActualWidth - fixedCols - SystemParameters.VerticalScrollBarWidth - 8;
+        if (avail < 160) return;
+        ColAccount.Width = Math.Round(avail * 0.45);
+        ColWhere.Width = Math.Round(avail * 0.55);
+    }
+
     // ---------- account drag-to-reorder with live preview ----------
 
     private void AccountList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
