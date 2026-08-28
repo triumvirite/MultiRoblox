@@ -18,16 +18,19 @@ This one is source-visible, stores nothing off your machine, and talks only to o
      install — the .NET runtime is bundled inside. (Windows may show a SmartScreen prompt the first
      time: *More info → Run anyway*.)
    - **From source:** install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-     (`winget install Microsoft.DotNet.SDK.8`), then:
+     (`winget install Microsoft.DotNet.SDK.8`), then build your own exe + Desktop shortcut:
      ```
-     dotnet run --project src/MultiRoblox.App
+     powershell -ExecutionPolicy Bypass -File publish.ps1
      ```
-     To produce your own `.exe`:
-     ```
-     dotnet publish src/MultiRoblox.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
-     ```
-     Result: `src/MultiRoblox.App/bin/Release/net8.0-windows/win-x64/publish/MultiRoblox.exe`
-     (~170 MB, plus a few small native `.dll` files that must stay next to it).
+     Result: one self-contained `src/MultiRoblox.App/bin/Release/net8.0-windows/win-x64/publish/MultiRoblox.exe`
+     (~180 MB, .NET bundled in — copy it anywhere). Or just `dotnet run --project src/MultiRoblox.App`
+     to run without building an exe.
+
+   To cut a GitHub release (needs `gh` signed in):
+   ```
+   powershell -ExecutionPolicy Bypass -File publish.ps1 -Release v1.1.0 -Notes "what changed"
+   ```
+   Builds, zips exe + README, tags, pushes the tag, and attaches the zip to a new release.
 2. Launch it. Click **Add** (bottom-left), sign in through the built-in login window, and the account
    appears in the sidebar.
 3. Click an account → type a **Place ID** → **Join**.
