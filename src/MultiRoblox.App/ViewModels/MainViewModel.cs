@@ -112,8 +112,21 @@ public partial class MainViewModel : ObservableObject
             Application.Current?.Dispatcher.BeginInvoke(() => SyncInstance(inst));
         _svc.Accounts.Changed += (_, _) => OnUi(() => { RebuildCategories(); ReloadAccounts(); });
 
+        if (Enum.TryParse<JoinMode>(_svc.Settings.Current.JoinMode, out var savedMode))
+            JoinModeValue = savedMode;
+        _joinModeLoaded = true;
+
         UpdateThemeToggle();
         _ = CheckForUpdateSilentlyAsync();
+    }
+
+    private bool _joinModeLoaded;
+
+    partial void OnJoinModeValueChanged(JoinMode value)
+    {
+        if (!_joinModeLoaded) return;
+        _svc.Settings.Current.JoinMode = value.ToString();
+        _svc.Settings.Save();
     }
 
     // --- categories ----------------------------------------------

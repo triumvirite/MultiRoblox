@@ -30,6 +30,9 @@ public sealed class AppSettings
 
     public string ThemeName { get; set; } = "Dark";
 
+    /// <summary>Last-used join tab: "Manual" / "Favorites" / "Recents" / "PlayerFinder".</summary>
+    public string JoinMode { get; set; } = "Manual";
+
     /// <summary>User-created account categories (kept even when no account uses one yet).</summary>
     public List<string> Categories { get; set; } = new();
 
