@@ -2,15 +2,14 @@ name: build & release
 
 on:
   push:
-    branches: [main]          # every push to main -> refresh the rolling "latest" release
-    tags: ["v*"]              # pushing a version tag -> permanent versioned release
-  workflow_dispatch:            # manual "Run workflow" button
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write               # needed to create/update releases and move the tag
+  contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: true
 
 jobs:
@@ -31,21 +30,18 @@ jobs:
       - name: Publish single-file exe
         run: dotnet publish src/MultiRoblox.App/MultiRoblox.App.csproj -c Release --nologo
 
-      - name: Work out the version label
+      - name: Read version from the project
         id: ver
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF -like 'refs/tags/v*') {
-            $tag = $env:GITHUB_REF -replace 'refs/tags/',''
-            $rolling = 'false'
-          } else {
-            $tag = 'latest'
-            $rolling = 'true'
-          }
-          "tag=$tag"          | Out-File $env:GITHUB_OUTPUT -Append
-          "rolling=$rolling"  | Out-File $env:GITHUB_OUTPUT -Append
+          $csproj = Get-Content src/MultiRoblox.App/MultiRoblox.App.csproj -Raw
+          if ($csproj -notmatch '<Version>([^<]+)</Version>') { throw "no <Version> in csproj" }
+          $v = $Matches[1].Trim()
+          "tag=v$v" | Out-File $env:GITHUB_OUTPUT -Append
+          Write-Host "version = v$v"
 
       - name: Package
+        id: pkg
         shell: pwsh
         run: |
           $pub = "src/MultiRoblox.App/bin/Release/net8.0-windows/win-x64/publish"
@@ -53,15 +49,13 @@ jobs:
           $zip = "MultiRoblox-${{ steps.ver.outputs.tag }}-win-x64.zip"
           Compress-Archive -Path "$pub/MultiRoblox.exe", "README.md" -DestinationPath $zip -Force
           "zip=$zip" | Out-File $env:GITHUB_OUTPUT -Append
-        id: pkg
 
-      - name: Move the rolling tag to this commit
-        if: steps.ver.outputs.rolling == 'true'
+      - name: Point the version tag at this commit
         run: |
-          git tag -f latest
-          git push -f origin latest
+          git tag -f "${{ steps.ver.outputs.tag }}"
+          git push -f origin "${{ steps.ver.outputs.tag }}"
 
-      - name: Publish / refresh the release
+      - name: Create or refresh the release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,18 +63,12 @@ jobs:
           $tag = "${{ steps.ver.outputs.tag }}"
           $zip = "${{ steps.pkg.outputs.zip }}"
           $sha = "${{ github.sha }}".Substring(0,7)
-
-          if ($tag -eq 'latest') {
-            $title = "Latest build"
-            $notes = "Automatically built from commit $sha on $(Get-Date -Format 'yyyy-MM-dd HH:mm') UTC.`nUnzip and run MultiRoblox.exe - no install, .NET bundled. Windows 10/11 x64."
-          } else {
-            $title = "MultiRoblox $tag"
-            $notes = "Release $tag (commit $sha).`nUnzip and run MultiRoblox.exe - no install, .NET bundled. Windows 10/11 x64."
-          }
+          $title = "MultiRoblox $tag"
+          $notes = "Built from commit $sha on $(Get-Date -Format 'yyyy-MM-dd HH:mm') UTC.`n`nUnzip and run MultiRoblox.exe - no install, .NET runtime bundled in. Windows 10/11 x64."
 
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release edit $tag --title $title --notes $notes --target ${{ github.sha }} --latest
+            gh release edit $tag --title $title --notes $notes --target ${{ github.sha }} --latest --prerelease=false
             gh release upload $tag $zip --clobber
           } else {
             gh release create $tag $zip --title $title --notes $notes --target ${{ github.sha }} --latest

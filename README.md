@@ -14,11 +14,9 @@ This one is source-visible, stores nothing off your machine, and talks only to o
 **You do not install anything.** MultiRoblox is a single program you run directly.
 
 1. Get the app:
-   - **Easiest:** grab the zip from the
-     [**Latest build**](../../releases/tag/latest) release, unzip, double-click `MultiRoblox.exe`.
-     Nothing to install — the .NET runtime is bundled inside. (SmartScreen the first time:
-     *More info → Run anyway*.) This release is rebuilt automatically on every push to `main`, so it
-     always matches the current code; tagged `vX.Y.Z` releases are permanent snapshots.
+   - **Easiest:** open [**Releases**](../../releases), grab `MultiRoblox-vX.Y.Z-win-x64.zip` from the
+     newest one, unzip, double-click `MultiRoblox.exe`. Nothing to install — the .NET runtime is
+     bundled inside. (SmartScreen the first time: *More info → Run anyway*.)
    - **From source:** install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
      (`winget install Microsoft.DotNet.SDK.8`), then build your own exe + Desktop shortcut:
      ```
@@ -28,13 +26,14 @@ This one is source-visible, stores nothing off your machine, and talks only to o
      (~180 MB, .NET bundled in — copy it anywhere). Or just `dotnet run --project src/MultiRoblox.App`
      to run without building an exe.
 
-   **Releases are automated** — GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
-   builds and tests on every push to `main` and refreshes the rolling **Latest build** release.
-   For a permanent versioned release, push a tag:
-   ```
-   git tag v1.1.0 && git push origin v1.1.0
-   ```
-   (or run `publish.ps1 -Release v1.1.0 -Notes "what changed"` to do it from your machine).
+   **Releases are automated.** GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
+   builds + tests on every push to `main`, then creates/updates a release named after the
+   `<Version>` in [`MultiRoblox.App.csproj`](src/MultiRoblox.App/MultiRoblox.App.csproj) (currently
+   `v1.0.0`) with the fresh `MultiRoblox.exe` attached.
+
+   - Push a normal code change → the current version's release gets the new build.
+   - Ready to call it a new version? Bump `<Version>` (e.g. `1.1.0`) and push → a new `v1.1.0`
+     release appears; the old one stays as history.
 2. Launch it. Click **Add** (bottom-left), sign in through the built-in login window, and the account
    appears in the sidebar.
 3. Click an account → type a **Place ID** → **Join**.
