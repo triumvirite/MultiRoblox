@@ -152,12 +152,17 @@ public sealed class InstanceManager : IDisposable
                 }
                 catch { }
             }
-            if (hasWindow) inst.HadWindow = true;
+            if (hasWindow) { inst.HadWindow = true; inst.WindowGoneSince = null; }
 
             bool graceOver = (DateTimeOffset.Now - inst.LaunchedAt).TotalSeconds >= 25;
 
-            // A live client process with no visible window == closed to the tray (unambiguous, act now).
-            bool closedToTray = anyClientAlive && inst.HadWindow && !hasWindow;
+            // Window missing while the process lives == closed to the tray. Debounce ~2s to ride out
+            // transient hides during loading transitions.
+            bool windowMissing = anyClientAlive && inst.HadWindow && !hasWindow;
+            if (windowMissing) inst.WindowGoneSince ??= DateTimeOffset.Now;
+            bool closedToTray = windowMissing
+                                && (DateTimeOffset.Now - inst.WindowGoneSince!.Value).TotalSeconds >= 2;
+
             // No client process at all — wait out the startup grace first, because the launcher
             // process can briefly exit while handing off to the real client.
             bool processGone = !anyClientAlive && graceOver;
@@ -170,7 +175,7 @@ public sealed class InstanceManager : IDisposable
                 inst.State = InstanceState.Closed;
                 InstanceChanged?.Invoke(this, inst);
             }
-            else if (anyClientAlive && inst.State != InstanceState.Running)
+            else if (anyClientAlive && hasWindow && inst.State != InstanceState.Running)
             {
                 inst.State = InstanceState.Running;
                 InstanceChanged?.Invoke(this, inst);
@@ -182,14 +187,27 @@ public sealed class InstanceManager : IDisposable
     private void CleanUp(RobloxInstance inst)
     {
         AdoptMatchingProcesses(inst);
-        foreach (int pid in inst.ProcessIds.ToArray())
+
+        var scan = ProcessScanner.Scan();
+        var mine = new HashSet<int>(inst.ProcessIds);
+        foreach (var p in scan)
+            if (p.CommandLine.Contains(inst.BrowserTrackerId.ToString()) ||
+                p.CommandLine.Contains($"placeId={inst.PlaceId}"))
+                mine.Add(p.Pid);
+
+        // Kill the crash handlers FIRST — otherwise RobloxCrashHandler sees the client die
+        // "abnormally" and relaunches it (the "it reopens after closing" bug).
+        foreach (var p in scan)
+            if (p.Name.Contains("Crash", StringComparison.OrdinalIgnoreCase) && mine.Contains(p.ParentPid))
+                KillTree(p.Pid);
+
+        foreach (int pid in mine)
         {
             KillTree(pid);
             Unwatch(pid);
         }
-        foreach (var p in ProcessScanner.Scan())
-            if (p.CommandLine.Contains(inst.BrowserTrackerId.ToString()))
-                KillTree(p.Pid);
+
+        lock (_gate) _instances.Remove(inst);   // stop tracking it entirely
     }
 
     private void Unwatch(int pid)

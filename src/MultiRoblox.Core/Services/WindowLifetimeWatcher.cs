@@ -88,13 +88,20 @@ internal sealed class WindowLifetimeWatcher : IDisposable
     {
         if (hwnd == IntPtr.Zero || idObject != OBJID_WINDOW || idChild != 0 || _watched.IsEmpty) return;
 
-        GetWindowThreadProcessId(hwnd, out uint pid);
-        if (!_watched.TryGetValue((int)pid, out var onGone)) return;
+        GetWindowThreadProcessId(hwnd, out uint pidU);
+        int pid = (int)pidU;
+        if (!_watched.ContainsKey(pid) || HasVisibleTopLevelWindow(pid)) return;
 
-        if (!HasVisibleTopLevelWindow((int)pid))
+        // Debounce: Roblox briefly hides its window during some transitions. Only act if it's
+        // still gone ~1.5s later.
+        Task.Delay(1500).ContinueWith(_ =>
         {
-            try { onGone(); } catch (Exception e) { _log?.LogDebug(e, "window-gone callback threw"); }
-        }
+            if (_disposed) return;
+            if (_watched.TryGetValue(pid, out var onGone) && !HasVisibleTopLevelWindow(pid))
+            {
+                try { onGone(); } catch (Exception e) { _log?.LogDebug(e, "window-gone callback threw"); }
+            }
+        });
     }
 
     private static bool HasVisibleTopLevelWindow(int pid)

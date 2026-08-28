@@ -16,6 +16,7 @@
         <app:NullToBoolConverter x:Key="NotNull"/>
         <app:UpdateStatusToBrushConverter x:Key="UpdateBrush"/>
         <app:EqualsToVisibilityConverter x:Key="EqVis"/>
+        <app:RelativeTimeConverter x:Key="Ago"/>
 
         <!-- join-mode toggle buttons: accent fill when their mode is active -->
         <Style x:Key="ModeManual" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
@@ -286,13 +287,18 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel>
-                                        <TextBlock x:Name="Pid" DockPanel.Dock="Right" Text="{Binding PlaceId}" FontSize="12"
-                                                   Foreground="{DynamicResource SubtleText}" VerticalAlignment="Center"/>
+                                        <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock x:Name="Ago" Text="{Binding LastPlayed, Converter={StaticResource Ago}}"
+                                                       FontSize="11" Foreground="{DynamicResource SubtleText}" TextAlignment="Right"/>
+                                            <TextBlock x:Name="Pid" Text="{Binding PlaceId}" FontSize="11"
+                                                       Foreground="{DynamicResource SubtleText}" TextAlignment="Right"/>
+                                        </StackPanel>
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2" VerticalAlignment="Center"/>
                                     </DockPanel>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
                                             <Setter TargetName="Pid" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
+                                            <Setter TargetName="Ago" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
                                         </DataTrigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>

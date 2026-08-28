@@ -30,6 +30,9 @@ public sealed class RobloxInstance
     /// <summary>Set once the client has shown a visible window; lets us tell "closed to tray" from "still starting".</summary>
     public bool HadWindow { get; set; }
 
+    /// <summary>First poll at which the client's window was found missing (debounce for transient hides).</summary>
+    public DateTimeOffset? WindowGoneSince { get; set; }
+
     /// <summary>Last known log file path for this instance (used by the watchdog).</summary>
     public string? LogFile { get; set; }
 }

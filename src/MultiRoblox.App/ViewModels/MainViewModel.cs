@@ -104,7 +104,9 @@ public partial class MainViewModel : ObservableObject
             var vm = Accounts.FirstOrDefault(a => a.Id == e.AccountId);
             if (vm is not null) vm.Health = e.Health;
         });
-        _svc.Instances.InstanceChanged += (_, inst) => OnUi(() => SyncInstance(inst));
+        // non-blocking: this event fires from the WinEvent-hook / poll threads
+        _svc.Instances.InstanceChanged += (_, inst) =>
+            Application.Current?.Dispatcher.BeginInvoke(() => SyncInstance(inst));
         _svc.Accounts.Changed += (_, _) => OnUi(() => { RebuildCategories(); ReloadAccounts(); });
 
         UpdateThemeToggle();
@@ -633,13 +635,11 @@ public partial class MainViewModel : ObservableObject
         if (vm is null) return;
         vm.Sync();
 
-        // Client closed (externally via X / Alt+F4, or it exited / crashed) — drop it from the list.
+        // Client gone (closed via X / Alt+F4, exited, crashed, or we terminated it) — drop the row.
         if (inst.State is InstanceState.Closed or InstanceState.Disconnected or InstanceState.Terminated)
         {
-            bool relaunch = inst.State is InstanceState.Closed or InstanceState.Disconnected
-                            && _svc.Settings.Current.AutoRelaunchOnDisconnect;
             Instances.Remove(vm);
-            if (relaunch)
+            if (inst.State is InstanceState.Disconnected && _svc.Settings.Current.AutoRelaunchOnDisconnect)
             {
                 var account = _svc.Accounts.FindById(inst.AccountId);
                 if (account is not null)
@@ -647,7 +647,7 @@ public partial class MainViewModel : ObservableObject
                         ? JoinRequest.Server(inst.PlaceId, inst.JobId)
                         : JoinRequest.Place(inst.PlaceId));
             }
-            else
+            else if (inst.State is InstanceState.Closed)
             {
                 Status = $"{inst.AccountLabel} closed.";
             }
