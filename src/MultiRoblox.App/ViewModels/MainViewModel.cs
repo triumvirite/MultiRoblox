@@ -641,6 +641,88 @@ public partial class MainViewModel : ObservableObject
         if (win.ShowDialog() == true) { RebuildCategories(); ReloadAccounts(); Status = "Account added."; }
     }
 
+    /// <summary>Import accounts from ic3w0lf22's Roblox Account Manager (its AccountData.json).</summary>
+    [RelayCommand]
+    private async Task ImportAccountsAsync()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select Roblox Account Manager's AccountData.json",
+            Filter = "RAM account data (AccountData.json)|AccountData.json|JSON files (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        var (status, ramAccounts) = RamImporter.Read(dlg.FileName);
+        switch (status)
+        {
+            case RamImporter.Result.PasswordProtected:
+                MessageBox.Show(
+                    "That file is password-protected. Open RAM, remove the encryption password " +
+                    "(Settings → Account Encryption → Default), then import again.",
+                    "Import from RAM", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            case RamImporter.Result.FileMissing:
+            case RamImporter.Result.Unreadable:
+                MessageBox.Show("Couldn't read that file as a Roblox Account Manager account list.",
+                    "Import from RAM", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            case RamImporter.Result.Empty:
+                Status = "No accounts found in that file.";
+                return;
+        }
+
+        var existing = _svc.Accounts.Accounts;
+        var toAdd = new List<Account>();
+        int skipped = 0;
+        foreach (var r in ramAccounts)
+        {
+            if (existing.Any(a => a.UserId == r.UserID ||
+                    string.Equals(a.SecurityToken, r.SecurityToken, StringComparison.Ordinal)) ||
+                toAdd.Any(a => a.UserId == r.UserID))
+            {
+                skipped++;
+                continue;
+            }
+            var acc = new Account
+            {
+                Username = r.Username,
+                DisplayName = r.Username,
+                UserId = r.UserID,
+                SecurityToken = r.SecurityToken,
+                Alias = (r.Alias ?? "").Trim(),
+                Note = BuildImportedNote(r),
+            };
+            if (!string.IsNullOrWhiteSpace(r.Group) && !r.Group.Trim().Equals("Default", StringComparison.OrdinalIgnoreCase))
+                acc.Categories.Add(r.Group.Trim());
+            if (long.TryParse(r.BrowserTrackerID, out var btid) && btid > 0)
+                acc.BrowserTrackerId = btid;
+            toAdd.Add(acc);
+        }
+
+        int added = _svc.Accounts.AddMany(toAdd);
+        RebuildCategories();
+        ReloadAccounts();
+        Status = added == 0
+            ? $"Nothing imported — all {skipped} account(s) are already here."
+            : $"Imported {added} account(s)" + (skipped > 0 ? $", skipped {skipped} already present." : ".");
+
+        // check the freshly imported cookies in the background so the health dots settle
+        foreach (var acc in toAdd)
+            _ = _svc.KeepAlive.RefreshAsync(acc);
+        await Task.CompletedTask;
+    }
+
+    private static string BuildImportedNote(RamImporter.RamAccount r)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(r.Description)) parts.Add(r.Description.Trim());
+        if (r.Fields is { Count: > 0 })
+            parts.AddRange(r.Fields.Where(f => !string.IsNullOrWhiteSpace(f.Value))
+                                   .Select(f => $"{f.Key}: {f.Value}"));
+        return string.Join("\n", parts);
+    }
+
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void RemoveAccount() => RemoveAccounts(new[] { SelectedAccount! });
 

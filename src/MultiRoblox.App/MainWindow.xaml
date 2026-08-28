@@ -92,8 +92,10 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="10">
-                    <Button Content="Add" Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}" Width="70"/>
-                    <Button Content="Remove" Style="{StaticResource DangerButton}" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="70"/>
+                    <Button Content="Add" Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}" Width="66"/>
+                    <Button Content="Import" Command="{Binding ImportAccountsCommand}" Margin="6,0,0,0" Width="66"
+                            ToolTip="Import accounts from Roblox Account Manager's AccountData.json"/>
+                    <Button Content="Remove" Style="{StaticResource DangerButton}" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="66"/>
                 </StackPanel>
 
                 <ListBox x:Name="AccountList" Margin="4" Background="Transparent" BorderThickness="0"

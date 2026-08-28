@@ -122,6 +122,25 @@ public sealed class AccountStore
         return account;
     }
 
+    /// <summary>Bulk add (import): one Save + one Changed for the whole batch. Returns the count added.</summary>
+    public int AddMany(IEnumerable<Account> accounts)
+    {
+        int next = _accounts.Count == 0 ? 0 : _accounts.Max(a => a.Order) + 1;
+        int added = 0;
+        foreach (var account in accounts)
+        {
+            if (account.BrowserTrackerId == 0)
+                account.BrowserTrackerId = Random.Shared.NextInt64(100_000_000_000, 175_000_000_000);
+            account.Order = next++;
+            _accounts.Add(account);
+            added++;
+        }
+        if (added == 0) return 0;
+        Save();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return added;
+    }
+
     public void Remove(Guid id)
     {
         _accounts.RemoveAll(a => a.Id == id);
