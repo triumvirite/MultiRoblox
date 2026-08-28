@@ -1,0 +1,41 @@
+<Window x:Class="MultiRoblox.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="560" Width="560" WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button Content="Save" Style="{StaticResource AccentButton}" Click="Save_Click" Width="90"/>
+            <Button Content="Cancel" Margin="8,0,0,0" Click="Cancel_Click" Width="90"/>
+        </StackPanel>
+
+        <StackPanel>
+            <TextBlock Text="Multi-instance" Style="{StaticResource H1}"/>
+            <CheckBox x:Name="MultiInstance" Content="Allow multiple Roblox clients at once" Margin="0,8,0,0"/>
+            <TextBlock Text="Held via the Roblox singleton objects while the app runs." Style="{StaticResource Subtle}" Margin="0,2,0,0"/>
+
+            <TextBlock Text="RobloxPlayerBeta.exe path (optional)" Margin="0,16,0,4" Style="{StaticResource Subtle}"/>
+            <TextBox x:Name="RobloxPath"/>
+
+            <TextBlock Text="Sessions" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="Keep-alive every" VerticalAlignment="Center"/>
+                <TextBox x:Name="RefreshMinutes" Width="60" Margin="8,0"/>
+                <TextBlock Text="minutes (0 = off)" VerticalAlignment="Center"/>
+            </StackPanel>
+            <CheckBox x:Name="AutoRelaunch" Content="Auto-relaunch an instance if it disconnects" Margin="0,8,0,0"/>
+            <CheckBox x:Name="CloseToTray" Content="Closing the window minimises to the tray" Margin="0,8,0,0"/>
+
+            <TextBlock Text="Local control API" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+            <CheckBox x:Name="ApiEnabled" Content="Enable HTTP API on 127.0.0.1" Margin="0,8,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="Port" VerticalAlignment="Center"/>
+                <TextBox x:Name="ApiPort" Width="80" Margin="8,0"/>
+                <TextBlock Text="Key" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                <TextBox x:Name="ApiKey" Width="200" Margin="8,0"/>
+            </StackPanel>
+
+            <TextBlock Text="Appearance" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+            <ComboBox x:Name="ThemeBox" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+        </StackPanel>
+    </DockPanel>
+</Window>

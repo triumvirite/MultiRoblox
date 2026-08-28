@@ -1,0 +1,72 @@
+<Window x:Class="MultiRoblox.App.Views.ServerBrowserWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MultiRoblox.App.ViewModels"
+        Title="Server browser" Height="600" Width="820" WindowStartupLocation="CenterOwner"
+        d:DataContext="{d:DesignInstance vm:ServerBrowserViewModel}"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <DockPanel Margin="12">
+        <Grid DockPanel.Dock="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID"/>
+            <Button Grid.Column="1" Content="Refresh" Margin="8,0,0,0" Command="{Binding RefreshCommand}"/>
+            <Button Grid.Column="2" Content="Join smallest" Margin="8,0,0,0" Command="{Binding JoinSmallestCommand}"/>
+            <Button Grid.Column="3" Content="Recent / favorites" Margin="8,0,0,0" Command="{Binding LoadListsCommand}"/>
+        </Grid>
+
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" Style="{StaticResource Subtle}" Margin="0,8,0,0"/>
+
+        <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="220"/>
+            </Grid.ColumnDefinitions>
+
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Join selected" Style="{StaticResource AccentButton}" Command="{Binding JoinSelectedCommand}"/>
+                    <Button Content="Copy Job ID" Margin="8,0,0,0" Command="{Binding CopyJobIdCommand}"/>
+                </StackPanel>
+                <ListView ItemsSource="{Binding Servers}" SelectedItem="{Binding Selected}"
+                          Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="Players" Width="80" DisplayMemberBinding="{Binding Slots}"/>
+                            <GridViewColumn Header="Ping" Width="70" DisplayMemberBinding="{Binding Ping}"/>
+                            <GridViewColumn Header="FPS" Width="70" DisplayMemberBinding="{Binding Fps}"/>
+                            <GridViewColumn Header="Job ID" Width="380" DisplayMemberBinding="{Binding JobId}"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </DockPanel>
+
+            <DockPanel Grid.Column="1" Margin="10,0,0,0">
+                <TextBlock DockPanel.Dock="Top" Text="Recent" Style="{StaticResource Subtle}" FontWeight="SemiBold"/>
+                <ListBox DockPanel.Dock="Top" Height="180" ItemsSource="{Binding RecentGames}"
+                         Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Cursor="Hand"
+                                       MouseLeftButtonUp="Game_Click"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock DockPanel.Dock="Top" Text="Favorites" Style="{StaticResource Subtle}" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                <ListBox ItemsSource="{Binding FavoriteGames}" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Cursor="Hand"
+                                       MouseLeftButtonUp="Game_Click"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Grid>
+    </DockPanel>
+</Window>

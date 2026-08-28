@@ -1,0 +1,64 @@
+<Window x:Class="MultiRoblox.App.Views.UtilitiesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:MultiRoblox.App.ViewModels"
+        Title="Account utilities" Height="640" Width="640" WindowStartupLocation="CenterOwner"
+        d:DataContext="{d:DesignInstance vm:UtilitiesViewModel}"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+    <DockPanel Margin="16" Background="{DynamicResource Bg}">
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" Style="{StaticResource Subtle}" Margin="0,10,0,0"/>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Overview" Style="{StaticResource H1}"/>
+                <Border Background="{DynamicResource Surface}" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding OverviewText}" FontFamily="Consolas"/>
+                </Border>
+                <Button Content="Reload" Margin="0,8,0,0" HorizontalAlignment="Left" Command="{Binding LoadCommand}"/>
+
+                <TextBlock Text="Description" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+                <TextBox Text="{Binding Description}" AcceptsReturn="True" Height="90" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <Button Content="Save description" Style="{StaticResource AccentButton}" HorizontalAlignment="Left"
+                        Margin="0,8,0,0" Command="{Binding SaveDescriptionCommand}"/>
+
+                <TextBlock Text="Sessions" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+                <Button Content="Sign out all other sessions" HorizontalAlignment="Left" Margin="0,8,0,0"
+                        Command="{Binding LogoutOthersCommand}"/>
+
+                <TextBlock Text="Groups" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBox Width="160" Text="{Binding GroupIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Group ID"/>
+                    <Button Content="Join" Margin="8,0,0,0" Command="{Binding JoinGroupCommand}"/>
+                    <Button Content="Leave" Margin="8,0,0,0" Command="{Binding LeaveGroupCommand}"/>
+                </StackPanel>
+
+                <TextBlock Text="Block / unblock" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBox Width="220" Text="{Binding BlockUserInput, UpdateSourceTrigger=PropertyChanged}" Tag="username or id"/>
+                    <Button Content="Block" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding BlockCommand}"/>
+                    <Button Content="Unblock" Margin="8,0,0,0" Command="{Binding UnblockCommand}"/>
+                </StackPanel>
+
+                <TextBlock Text="Player finder" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+                <TextBlock Text="Usernames or IDs, comma/space separated." Style="{StaticResource Subtle}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBox Width="360" Text="{Binding FinderInput, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="Find" Margin="8,0,0,0" Style="{StaticResource AccentButton}" Command="{Binding FindCommand}"/>
+                </StackPanel>
+                <ListBox ItemsSource="{Binding FinderResults}" Height="140" Margin="0,8,0,0"
+                         Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Join" Padding="8,2"
+                                        Command="{Binding DataContext.JoinPlayerCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"/>
+                                <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
