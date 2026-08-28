@@ -45,8 +45,5 @@ public sealed class Account
     public string EffectiveGroup => string.IsNullOrWhiteSpace(Group) ? "Default" : Group.Trim();
 
     [JsonIgnore]
-    public string DisplayLabel =>
-        string.IsNullOrWhiteSpace(DisplayName) || DisplayName == Username
-            ? Username
-            : $"{DisplayName} (@{Username})";
+    public string DisplayLabel => Username;
 }
