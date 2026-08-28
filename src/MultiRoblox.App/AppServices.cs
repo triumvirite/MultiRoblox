@@ -45,12 +45,12 @@ public sealed class AppServices : IDisposable
         };
 
         Pool = new RobloxClientPool(Accounts);
-        Launcher = new GameLauncher(Settings, Pool, LoggerFactory.CreateLogger<GameLauncher>());
+        Singleton = new SingletonHolder(LoggerFactory.CreateLogger<SingletonHolder>());
+        Launcher = new GameLauncher(Settings, Pool, Singleton, LoggerFactory.CreateLogger<GameLauncher>());
         Instances = new InstanceManager(LoggerFactory.CreateLogger<InstanceManager>());
         KeepAlive = new CookieKeepAlive(Accounts, Pool, Settings, LoggerFactory.CreateLogger<CookieKeepAlive>());
         ControlApi = new ControlApiHost(Settings, Accounts, Launcher, Instances, Pool, LoggerFactory);
 
-        Singleton = new SingletonHolder(LoggerFactory.CreateLogger<SingletonHolder>());
         ApplyMultiInstance();
     }
 
@@ -58,7 +58,7 @@ public sealed class AppServices : IDisposable
     public void ApplyMultiInstance()
     {
         if (Settings.Current.AllowMultipleInstances)
-            Singleton.TryHold();
+            Singleton.EnsureMultiInstance();
         else
             Singleton.Release();
     }

@@ -58,6 +58,32 @@ public sealed class SingletonHolder : IDisposable
         return allFresh;
     }
 
+    /// <summary>
+    /// Make sure a second client can launch <b>right now</b>, even if a Roblox client started outside
+    /// MultiRoblox is already running and owns the singleton. Holds the objects ourselves, then closes
+    /// any singleton handles still held by running <c>RobloxPlayerBeta.exe</c> processes.
+    /// Safe to call before every launch.
+    /// </summary>
+    public void EnsureMultiInstance()
+    {
+        TryHold();
+        try
+        {
+            int closed = SingletonInterloper.FreeExistingClients(_log);
+            if (closed > 0)
+            {
+                _log?.LogInformation("freed {Count} singleton handle(s) from pre-existing Roblox client(s)", closed);
+                // Re-hold in case closing the last external handle destroyed an object we only opened.
+                Release();
+                TryHold();
+            }
+        }
+        catch (Exception ex)
+        {
+            _log?.LogWarning(ex, "SingletonInterloper failed; a pre-existing Roblox client may still block multi-instance");
+        }
+    }
+
     public void Release()
     {
         foreach (var h in _handles)

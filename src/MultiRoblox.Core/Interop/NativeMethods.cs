@@ -47,6 +47,54 @@ internal static class NativeMethods
     internal const uint PROCESS_TERMINATE = 0x0001;
     internal const uint PROCESS_SET_QUOTA = 0x0100;
     internal const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    internal const uint PROCESS_DUP_HANDLE = 0x0040;
+
+    // --- Remote handle enumeration / closing (multi-instance when Roblox is already running) ---
+
+    [DllImport("ntdll.dll")]
+    internal static extern int NtQuerySystemInformation(
+        int systemInformationClass, IntPtr systemInformation, int systemInformationLength, out int returnLength);
+
+    [DllImport("ntdll.dll")]
+    internal static extern int NtQueryObject(
+        IntPtr handle, int objectInformationClass, IntPtr objectInformation, int objectInformationLength, out int returnLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DuplicateHandle(
+        IntPtr hSourceProcessHandle, IntPtr hSourceHandle, IntPtr hTargetProcessHandle,
+        out IntPtr lpTargetHandle, uint dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, uint dwOptions);
+
+    [DllImport("kernel32.dll")]
+    internal static extern IntPtr GetCurrentProcess();
+
+    internal const int SystemExtendedHandleInformation = 0x40;
+    internal const int ObjectNameInformation = 1;
+    internal const int ObjectTypeInformation = 2;
+    internal const int STATUS_INFO_LENGTH_MISMATCH = unchecked((int)0xC0000004);
+    internal const uint DUPLICATE_CLOSE_SOURCE = 0x1;
+    internal const uint DUPLICATE_SAME_ACCESS = 0x2;
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX
+    {
+        public IntPtr Object;
+        public IntPtr UniqueProcessId;
+        public IntPtr HandleValue;
+        public uint GrantedAccess;
+        public ushort CreatorBackTraceIndex;
+        public ushort ObjectTypeIndex;
+        public uint HandleAttributes;
+        public uint Reserved;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct UNICODE_STRING
+    {
+        public ushort Length;
+        public ushort MaximumLength;
+        public IntPtr Buffer;
+    }
 
     internal enum JobObjectInfoType
     {

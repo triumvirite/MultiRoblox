@@ -13,12 +13,15 @@ public sealed class GameLauncher
 {
     private readonly SettingsStore _settings;
     private readonly RobloxClientPool _pool;
+    private readonly SingletonHolder? _singleton;
     private readonly ILogger<GameLauncher>? _log;
 
-    public GameLauncher(SettingsStore settings, RobloxClientPool pool, ILogger<GameLauncher>? log = null)
+    public GameLauncher(SettingsStore settings, RobloxClientPool pool, SingletonHolder? singleton = null,
+        ILogger<GameLauncher>? log = null)
     {
         _settings = settings;
         _pool = pool;
+        _singleton = singleton;
         _log = log;
     }
 
@@ -30,6 +33,11 @@ public sealed class GameLauncher
         if (exe is null)
             throw new InvalidOperationException(
                 "Could not find RobloxPlayerBeta.exe. Install Roblox, or set an explicit path in Settings.");
+
+        // If multi-instance is on, make sure nothing (including a Roblox client started outside
+        // MultiRoblox) currently owns the singleton, or this launch would just focus that client.
+        if (_settings.Current.AllowMultipleInstances)
+            _singleton?.EnsureMultiInstance();
 
         var client = _pool.Get(account);
         string ticket = await client.GetAuthTicketAsync(ct);
