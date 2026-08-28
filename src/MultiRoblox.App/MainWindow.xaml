@@ -59,9 +59,9 @@
                 <StackPanel DockPanel.Dock="Top" Margin="10,10,10,6">
                     <TextBlock Text="Accounts" Style="{StaticResource H1}"/>
                     <DockPanel Margin="0,8,0,0">
-                        <Button DockPanel.Dock="Right" Content="+" Width="30" Margin="6,0,0,0"
-                                Command="{Binding NewCategoryCommand}" ToolTip="Create a new category"/>
-                        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"/>
+                        <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource IconButton}" Margin="6,0,0,0"
+                                FontSize="22" Command="{Binding NewCategoryCommand}" ToolTip="Create a new category"/>
+                        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" VerticalAlignment="Center"/>
                     </DockPanel>
                     <TextBox Margin="0,8,0,0" Tag="Search"
                              Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
@@ -70,8 +70,8 @@
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="10">
                     <Button Content="Add" Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}" Width="70"/>
                     <Button Content="Remove" Style="{StaticResource DangerButton}" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="70"/>
-                    <Button Content="↑" Command="{Binding MoveUpCommand}" Margin="6,0,0,0" Width="30"/>
-                    <Button Content="↓" Command="{Binding MoveDownCommand}" Margin="4,0,0,0" Width="30"/>
+                    <Button Content="↑" Style="{StaticResource IconButton}" FontSize="14" Command="{Binding MoveUpCommand}" Margin="6,0,0,0"/>
+                    <Button Content="↓" Style="{StaticResource IconButton}" FontSize="14" Command="{Binding MoveDownCommand}" Margin="4,0,0,0"/>
                 </StackPanel>
 
                 <ListBox x:Name="AccountList" Margin="4" Background="Transparent" BorderThickness="0"
@@ -120,7 +120,8 @@
                     <TextBlock Text="{Binding SelectedAccount.Label, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Grid>
-                            <Button Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}">
+                            <Button x:Name="UpdateButton" Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}"
+                                    AutomationProperties.Name="UpdateToggle">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="⚠" Margin="0,0,6,0" VerticalAlignment="Center" FontWeight="Bold"
                                                Foreground="{DynamicResource Warn}"
@@ -131,31 +132,29 @@
                                 </StackPanel>
                             </Button>
 
-                            <!-- update dropdown, anchored under the button -->
-                            <Popup IsOpen="{Binding UpdatePopupOpen, Mode=TwoWay}" StaysOpen="False"
-                                   PlacementTarget="{Binding RelativeSource={RelativeSource AncestorType=Grid}}"
-                                   Placement="Bottom" HorizontalOffset="0" VerticalOffset="6" AllowsTransparency="True">
+                            <!-- update dropdown, centred under the button -->
+                            <Popup x:Name="UpdatePopup" IsOpen="{Binding UpdatePopupOpen, Mode=TwoWay}" StaysOpen="False"
+                                   PlacementTarget="{Binding ElementName=UpdateButton}"
+                                   Placement="Custom" VerticalOffset="6" AllowsTransparency="True">
                                 <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="8" Width="340" Padding="14">
+                                        BorderThickness="1" CornerRadius="8" Width="300" Padding="14"
+                                        TextElement.Foreground="{DynamicResource Text}">
                                     <StackPanel>
-                                        <TextBlock Text="{Binding UpdateHeadline}" Style="{StaticResource H1}" FontSize="16"/>
+                                        <TextBlock Text="{Binding UpdateHeadline}" FontSize="16" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource Text}"/>
                                         <Grid Margin="0,10,0,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
                                             <TextBlock Text="Installed" Style="{StaticResource Subtle}" Margin="0,0,14,3"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding UpdateInstalledText}" Margin="0,0,0,3"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding UpdateInstalledText}" Margin="0,0,0,3"
+                                                       Foreground="{DynamicResource Text}"/>
                                             <TextBlock Grid.Row="1" Text="Latest" Style="{StaticResource Subtle}" Margin="0,0,14,0"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdateLatestText}"/>
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdateLatestText}"
+                                                       Foreground="{DynamicResource Text}"/>
                                         </Grid>
-                                        <Border Background="{DynamicResource Surface2}" CornerRadius="6" Padding="8" Margin="0,10,0,0"
-                                                MaxHeight="130" Visibility="{Binding UpdateHasNotes, Converter={StaticResource BoolVis}}">
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                                <TextBlock Text="{Binding UpdateNotes}" TextWrapping="Wrap" Style="{StaticResource Subtle}"/>
-                                            </ScrollViewer>
-                                        </Border>
-                                        <ProgressBar Height="5" Margin="0,10,0,0" Minimum="0" Maximum="1"
+                                        <ProgressBar Height="5" Margin="0,12,0,0" Minimum="0" Maximum="1"
                                                      Value="{Binding UpdateProgress}"
                                                      Visibility="{Binding UpdateInstalling, Converter={StaticResource BoolVis}}"
                                                      Foreground="{DynamicResource Accent}" Background="{DynamicResource Surface2}"/>
@@ -212,8 +211,8 @@
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID or game link"/>
                         <TextBox Grid.Column="1" Margin="8,0,0,0" Text="{Binding JobIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Job ID (optional)"/>
-                        <Button Grid.Column="2" Margin="8,0,0,0" Content="★ Favorite" Command="{Binding AddFavoriteCommand}"
-                                ToolTip="Save this place to your favorites"/>
+                        <Button Grid.Column="2" Margin="8,0,0,0" Content="★ Favorite" Style="{StaticResource GoldButton}"
+                                Command="{Binding AddFavoriteCommand}" ToolTip="Save this place to your favorites"/>
                         <Button Grid.Column="3" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
                     </Grid>
 

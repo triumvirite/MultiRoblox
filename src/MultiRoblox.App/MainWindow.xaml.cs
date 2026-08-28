@@ -1,9 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using MultiRoblox.App.ViewModels;
-using MultiRoblox.Core.Services;
 
 namespace MultiRoblox.App;
 
@@ -12,7 +12,20 @@ public partial class MainWindow : Window
     private Point _dragStart;
     private AccountItemViewModel? _dragItem;
 
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+    {
+        InitializeComponent();
+        UpdatePopup.CustomPopupPlacementCallback = CenterUnderTarget;
+    }
+
+    /// <summary>Centre the update dropdown horizontally under the button.</summary>
+    private static CustomPopupPlacement[] CenterUnderTarget(Size popupSize, Size targetSize, Point offset)
+        => new[]
+        {
+            new CustomPopupPlacement(
+                new Point((targetSize.Width - popupSize.Width) / 2, targetSize.Height + offset.Y),
+                PopupPrimaryAxis.Horizontal),
+        };
 
     private MainViewModel Vm => (MainViewModel)DataContext;
 

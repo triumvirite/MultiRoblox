@@ -55,8 +55,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _updateHeadline = "Checking…";
     [ObservableProperty] private string _updateInstalledText = "";
     [ObservableProperty] private string _updateLatestText = "";
-    [ObservableProperty] private string _updateNotes = "";
-    [ObservableProperty] private bool _updateHasNotes;
     [ObservableProperty] private bool _updateCanInstall;
     [ObservableProperty] private bool _updateInstalling;
     [ObservableProperty] private double _updateProgress;
@@ -490,7 +488,7 @@ public partial class MainViewModel : ObservableObject
                 if (info.UpdateAvailable)
                 {
                     UpdateState = UpdateStatus.Available;
-                    UpdateButtonText = $"Update to {info.LatestTag}";
+                    UpdateButtonText = "Update available";
                     UpdateTooltip = $"Update available: {info.LatestTag} (installed v{info.Current.ToString(3)})";
                 }
                 else
@@ -518,8 +516,6 @@ public partial class MainViewModel : ObservableObject
         if (info is null) { UpdateHeadline = "Checking…"; UpdateInstalledText = $"v{UpdateService.CurrentVersion.ToString(3)}"; UpdateLatestText = "…"; return; }
         UpdateInstalledText = $"v{info.Current.ToString(3)}";
         UpdateLatestText = info.LatestTag;
-        UpdateHasNotes = !string.IsNullOrWhiteSpace(info.Notes);
-        UpdateNotes = info.Notes.Trim();
         UpdateCanInstall = info.UpdateAvailable;
         UpdateHeadline = info.UpdateAvailable ? "Update available"
             : info.Latest > info.Current ? "Update available (no exe yet — try shortly)"

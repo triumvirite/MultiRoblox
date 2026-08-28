@@ -125,6 +125,23 @@
         <Setter Property="TextElement.Foreground" Value="{StaticResource OnDanger}"/>
     </Style>
 
+    <SolidColorBrush x:Key="Gold" Color="#E8A317"/>
+    <Style x:Key="GoldButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource Gold}"/>
+        <Setter Property="Foreground" Value="#14161A"/>
+        <Setter Property="TextElement.Foreground" Value="#14161A"/>
+    </Style>
+
+    <!-- square icon button (no internal padding so a single glyph stays centred) -->
+    <Style x:Key="IconButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    </Style>
+
     <!-- ============ list box ============ -->
 
     <Style TargetType="{x:Type ListBox}">
