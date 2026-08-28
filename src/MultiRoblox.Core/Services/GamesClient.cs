@@ -71,6 +71,39 @@ public sealed class GamesClient
         return ParseGameSummaries(json);
     }
 
+    /// <summary>Resolve a place id to its game name (for a locally-kept favorites list).</summary>
+    public async Task<string?> GetPlaceNameAsync(long placeId, CancellationToken ct = default)
+    {
+        try
+        {
+            var json = await AuthedGetAsync(
+                $"https://games.roblox.com/v1/games/multiget-place-details?placeIds={placeId}", ct);
+            if (json.ValueKind == JsonValueKind.Array && json.GetArrayLength() > 0)
+            {
+                var e = json[0];
+                if (e.TryGetProperty("name", out var n)) return n.GetString();
+            }
+        }
+        catch { }
+
+        // Fallback: universe lookup (no auth needed).
+        try
+        {
+            var u = await _http.GetFromJsonAsync<JsonElement>(
+                $"https://apis.roblox.com/universes/v1/places/{placeId}/universe", ct);
+            if (u.TryGetProperty("universeId", out var uid))
+            {
+                var g = await _http.GetFromJsonAsync<JsonElement>(
+                    $"https://games.roblox.com/v1/games?universeIds={uid.GetInt64()}", ct);
+                if (g.TryGetProperty("data", out var d) && d.GetArrayLength() > 0
+                    && d[0].TryGetProperty("name", out var name))
+                    return name.GetString();
+            }
+        }
+        catch { }
+        return null;
+    }
+
     // --- Player finder (presence) ------------------------------------
 
     public sealed record PlayerLocation(long UserId, int PresenceType, long? PlaceId, string? GameId, string? LastLocation);

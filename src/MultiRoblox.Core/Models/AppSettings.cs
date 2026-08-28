@@ -33,6 +33,9 @@ public sealed class AppSettings
     /// <summary>User-created account categories (kept even when no account uses one yet).</summary>
     public List<string> Categories { get; set; } = new();
 
+    /// <summary>Locally-pinned games for the "Favorites" join tab.</summary>
+    public List<FavoriteGame> Favorites { get; set; } = new();
+
     /// <summary>Optional extra passphrase layer on top of DPAPI. Empty = DPAPI only.</summary>
     public bool UsePassphrase { get; set; } = false;
 }

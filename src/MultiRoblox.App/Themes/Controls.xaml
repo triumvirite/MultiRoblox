@@ -5,7 +5,7 @@
     <!-- Fixed on-colour text: elements on a blue (accent) fill always use dark-theme (white) text;
          elements on a red (danger) fill always use light-theme (near-black) text. Contrast > theme. -->
     <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="OnDanger" Color="#14161A"/>
+    <SolidColorBrush x:Key="OnDanger" Color="#FFFFFF"/>
 
     <!-- ============ base typography ============ -->
 

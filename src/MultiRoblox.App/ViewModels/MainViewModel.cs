@@ -36,8 +36,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _placeIdInput = "";
     [ObservableProperty] private string _jobIdInput = "";
 
-    public ObservableCollection<GameSummary> FavoriteGames { get; } = new();
-    [ObservableProperty] private GameSummary? _selectedFavorite;
+    public ObservableCollection<FavoriteGame> Favorites { get; } = new();
+    [ObservableProperty] private FavoriteGame? _selectedFavorite;
 
     [ObservableProperty] private string _finderQuery = "";
     public ObservableCollection<PlayerFindResult> FinderResults { get; } = new();
@@ -70,6 +70,7 @@ public partial class MainViewModel : ObservableObject
         AccountsView.Filter = FilterAccount;
 
         RebuildCategories();
+        ReloadFavorites();
         ReloadAccounts();
 
         _svc.KeepAlive.HealthChanged += (_, e) => OnUi(() =>
@@ -155,30 +156,29 @@ public partial class MainViewModel : ObservableObject
         {
             PlaceIdInput = value.Model.SavedPlaceId;
             JobIdInput = value.Model.SavedJobId;
-            if (JoinModeValue == JoinMode.Favorites) _ = LoadFavoritesAsync();
         }
         JoinCommand.NotifyCanExecuteChanged();
+        AddFavoriteCommand.NotifyCanExecuteChanged();
         RemoveAccountCommand.NotifyCanExecuteChanged();
         RefreshAccountCommand.NotifyCanExecuteChanged();
         OpenUtilitiesCommand.NotifyCanExecuteChanged();
         OpenInBrowserCommand.NotifyCanExecuteChanged();
-        LoadFavoritesCommand.NotifyCanExecuteChanged();
+        FindPlayersCommand.NotifyCanExecuteChanged();
     }
 
     // --- join: mode switching -----------------------------------
 
     [RelayCommand]
-    private void SetJoinMode(string mode)
-    {
-        JoinModeValue = Enum.Parse<JoinMode>(mode);
-        if (JoinModeValue == JoinMode.Favorites && SelectedAccount is not null && FavoriteGames.Count == 0)
-            _ = LoadFavoritesAsync();
-    }
+    private void SetJoinMode(string mode) => JoinModeValue = Enum.Parse<JoinMode>(mode);
 
     private bool CanJoin() =>
         SelectedAccount is not null && !Busy && GameLinkParser.TryParse(PlaceIdInput, out _);
 
-    partial void OnPlaceIdInputChanged(string value) => JoinCommand.NotifyCanExecuteChanged();
+    partial void OnPlaceIdInputChanged(string value)
+    {
+        JoinCommand.NotifyCanExecuteChanged();
+        AddFavoriteCommand.NotifyCanExecuteChanged();
+    }
 
     [RelayCommand(CanExecute = nameof(CanJoin))]
     private async Task JoinAsync()
@@ -199,31 +199,56 @@ public partial class MainViewModel : ObservableObject
         await LaunchAsync(acc, join);
     }
 
-    // --- join: favorites --------------------------------------
+    // --- join: favorites (local, app-managed) ----------------
 
     private bool HasSelection() => SelectedAccount is not null;
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
-    private async Task LoadFavoritesAsync()
+    private void ReloadFavorites()
     {
-        var acc = SelectedAccount?.Model;
-        if (acc is null || acc.UserId == 0) { Status = "Refresh the account first."; return; }
-        try
+        Favorites.Clear();
+        foreach (var f in _svc.Settings.Current.Favorites.OrderBy(f => f.Name))
+            Favorites.Add(f);
+    }
+
+    private bool CanAddFavorite() => SelectedAccount is not null && GameLinkParser.TryParse(PlaceIdInput, out _);
+
+    [RelayCommand(CanExecute = nameof(CanAddFavorite))]
+    private async Task AddFavoriteAsync()
+    {
+        if (!GameLinkParser.TryParse(PlaceIdInput, out var link)) return;
+        if (_svc.Settings.Current.Favorites.Any(f => f.PlaceId == link.PlaceId))
         {
-            Busy = true;
-            Status = "Loading favorites…";
-            var games = new GamesClient(_svc.Pool.Get(acc));
-            var list = await games.GetFavoriteGamesAsync(acc.UserId);
-            FavoriteGames.Clear();
-            foreach (var g in list) FavoriteGames.Add(g);
-            Status = $"{FavoriteGames.Count} favorite games.";
+            Status = "Already in favorites.";
+            JoinModeValue = JoinMode.Favorites;
+            return;
         }
-        catch (Exception ex) { Status = "Favorites failed: " + ex.Message; }
-        finally { Busy = false; }
+        Status = "Adding to favorites…";
+        string? name = null;
+        try { name = await new GamesClient(_svc.Pool.Get(SelectedAccount!.Model)).GetPlaceNameAsync(link.PlaceId); }
+        catch { }
+
+        var fav = new FavoriteGame { PlaceId = link.PlaceId, Name = string.IsNullOrWhiteSpace(name) ? $"Place {link.PlaceId}" : name! };
+        _svc.Settings.Current.Favorites.Add(fav);
+        _svc.Settings.Save();
+        ReloadFavorites();
+        SelectedFavorite = Favorites.FirstOrDefault(f => f.PlaceId == fav.PlaceId);
+        JoinModeValue = JoinMode.Favorites;
+        Status = $"Favorited {fav.Name}.";
     }
 
     [RelayCommand]
-    private async Task JoinFavoriteAsync(GameSummary? game)
+    private void RemoveFavorite(FavoriteGame? game)
+    {
+        game ??= SelectedFavorite;
+        if (game is null) return;
+        _svc.Settings.Current.Favorites.RemoveAll(f => f.PlaceId == game.PlaceId);
+        _svc.Settings.Save();
+        ReloadFavorites();
+        Status = $"Removed {game.Name} from favorites.";
+    }
+
+    [RelayCommand]
+    private async Task JoinFavoriteAsync(FavoriteGame? game)
     {
         game ??= SelectedFavorite;
         if (game is null || SelectedAccount is null || game.PlaceId == 0) return;

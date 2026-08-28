@@ -208,25 +208,31 @@
                             <ColumnDefinition Width="2*"/>
                             <ColumnDefinition Width="2*"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID or game link"/>
                         <TextBox Grid.Column="1" Margin="8,0,0,0" Text="{Binding JobIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Job ID (optional)"/>
-                        <Button Grid.Column="2" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
+                        <Button Grid.Column="2" Margin="8,0,0,0" Content="★ Favorite" Command="{Binding AddFavoriteCommand}"
+                                ToolTip="Save this place to your favorites"/>
+                        <Button Grid.Column="3" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
                     </Grid>
 
                     <!-- Favorites -->
-                    <DockPanel Margin="0,12,0,0" Height="150"
+                    <DockPanel Margin="0,12,0,0" Height="160"
                                Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Favorites}">
                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinFavoriteCommand}"/>
-                            <Button Content="Reload" Margin="8,0,0,0" Command="{Binding LoadFavoritesCommand}"/>
+                            <Button Content="Remove" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding RemoveFavoriteCommand}"/>
                         </StackPanel>
-                        <ListBox ItemsSource="{Binding FavoriteGames}" SelectedItem="{Binding SelectedFavorite}"
+                        <ListBox ItemsSource="{Binding Favorites}" SelectedItem="{Binding SelectedFavorite}"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                  MouseDoubleClick="Favorite_DoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2"/>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding PlaceId}" Style="{StaticResource Subtle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2" VerticalAlignment="Center"/>
+                                    </DockPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
