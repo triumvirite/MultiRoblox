@@ -59,6 +59,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private JoinMode _joinModeValue = JoinMode.Manual;
     [ObservableProperty] private string _placeIdInput = "";
     [ObservableProperty] private string _jobIdInput = "";
+    [ObservableProperty] private string _gameName = "";
+    private CancellationTokenSource? _gameNameCts;
+    private readonly Dictionary<long, string> _gameNameCache = new();
 
     public ObservableCollection<FavoriteGame> Favorites { get; } = new();
     [ObservableProperty] private FavoriteGame? _selectedFavorite;
@@ -146,9 +149,10 @@ public partial class MainViewModel : ObservableObject
 
     public void AssignCategory(AccountItemViewModel item, string category)
     {
-        item.Model.Group = category == AllCategories ? "" : category;
+        bool clear = category == AllCategories;
+        item.Model.Group = clear ? "" : category;
         _svc.Accounts.Update(item.Model);
-        Status = $"Moved {item.Label} to {(string.IsNullOrEmpty(item.Model.Group) ? "Default" : category)}.";
+        Status = clear ? $"Removed {item.Label} from its category." : $"Moved {item.Label} to {category}.";
     }
 
     partial void OnSelectedCategoryChanged(string value) => AccountsView.Refresh();
@@ -207,6 +211,32 @@ public partial class MainViewModel : ObservableObject
     {
         JoinCommand.NotifyCanExecuteChanged();
         AddFavoriteCommand.NotifyCanExecuteChanged();
+        _ = ResolveGameNameAsync(value);
+    }
+
+    /// <summary>Debounced lookup of the game name for whatever's in the Place ID box.</summary>
+    private async Task ResolveGameNameAsync(string input)
+    {
+        _gameNameCts?.Cancel();
+        if (!GameLinkParser.TryParse(input, out var link)) { GameName = ""; return; }
+
+        if (_gameNameCache.TryGetValue(link.PlaceId, out var cached)) { GameName = cached; return; }
+
+        var cts = _gameNameCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(400, cts.Token);
+            var acc = SelectedAccount?.Model;
+            string? name = acc is null
+                ? null
+                : await new GamesClient(_svc.Pool.Get(acc)).GetPlaceNameAsync(link.PlaceId, cts.Token);
+            if (cts.Token.IsCancellationRequested) return;
+            name = string.IsNullOrWhiteSpace(name) ? "" : name!;
+            if (name.Length > 0) _gameNameCache[link.PlaceId] = name;
+            GameName = name;
+        }
+        catch (OperationCanceledException) { }
+        catch { GameName = ""; }
     }
 
     [RelayCommand(CanExecute = nameof(CanJoin))]

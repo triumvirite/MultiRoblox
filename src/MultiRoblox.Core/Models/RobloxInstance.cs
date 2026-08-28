@@ -28,6 +28,10 @@ public sealed class RobloxInstance
 
     public int RootPid { get; set; }
 
+    /// <summary>Cascade position for this client's window (0 = first opened).</summary>
+    public int CascadeSlot { get; set; }
+    public bool Positioned { get; set; }
+
     public InstanceState State { get; set; } = InstanceState.Launching;
 
     /// <summary>Set once the client has shown a visible window; tells "closed to tray" from "still starting".</summary>

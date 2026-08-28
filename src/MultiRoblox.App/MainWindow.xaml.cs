@@ -108,17 +108,34 @@ public partial class MainWindow : Window
         string label = targets.Count > 1 ? $"{targets.Count} accounts" : "account";
 
         var menu = new ContextMenu();
-        var addTo = new MenuItem { Header = $"Move {label} to category" };
-        void AddCat(string display, string value) =>
-            addTo.Items.Add(new MenuItem
+        var realCategories = Vm.Categories.Where(c => c != MainViewModel.AllCategories).ToList();
+
+        if (realCategories.Count > 0)
+        {
+            var moveTo = new MenuItem { Header = $"Move {label} to" };
+            foreach (var cat in realCategories)
             {
-                Header = display,
-                Command = new SimpleCommand(() => { foreach (var t in targets) Vm.AssignCategory(t, value); }),
+                var c = cat;
+                moveTo.Items.Add(new MenuItem
+                {
+                    Header = c,
+                    Command = new SimpleCommand(() => { foreach (var t in targets) Vm.AssignCategory(t, c); }),
+                });
+            }
+            menu.Items.Add(moveTo);
+        }
+
+        // "Remove from category" only when at least one target is currently in one
+        if (targets.Any(t => !string.IsNullOrEmpty(t.Model.Group)))
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Remove from category",
+                Command = new SimpleCommand(() => { foreach (var t in targets) Vm.AssignCategory(t, MainViewModel.AllCategories); }),
             });
-        AddCat("Default", MainViewModel.AllCategories);
-        foreach (var cat in Vm.Categories)
-            if (cat != MainViewModel.AllCategories) AddCat(cat, cat);
-        menu.Items.Add(addTo);
+
+        if (menu.Items.Count == 0)
+            menu.Items.Add(new MenuItem { Header = "No categories — use + to create one", IsEnabled = false });
+
         AccountList.ContextMenu = menu;
     }
 

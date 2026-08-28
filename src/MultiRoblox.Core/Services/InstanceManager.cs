@@ -55,7 +55,11 @@ public sealed class InstanceManager : IDisposable
             RootPid = SafePid(process),
         };
 
-        lock (_gate) _instances.Add(inst);
+        lock (_gate)
+        {
+            inst.CascadeSlot = _instances.Count;   // 0 for the first, 1 for the next, …
+            _instances.Add(inst);
+        }
 
         WatchRoot(inst);
         _log?.LogInformation("Registered instance {Id} ({Account}) root pid {Pid}", inst.Id, account.Username, inst.RootPid);
@@ -82,11 +86,14 @@ public sealed class InstanceManager : IDisposable
     {
         if (inst is null) return;
         RobloxInstance? tracked;
+        bool empty;
         lock (_gate)
         {
             tracked = _instances.FirstOrDefault(i => i.Id == inst.Id) ?? inst;
             _instances.Remove(tracked);
+            empty = _instances.Count == 0;
         }
+        if (empty) WindowArranger.Reset();
         if (tracked.State is InstanceState.Terminated) return;
         tracked.State = InstanceState.Terminated;
 
@@ -158,8 +165,18 @@ public sealed class InstanceManager : IDisposable
 
             AdoptStragglers(inst);
 
-            bool alive = GroupAlive(inst, out bool hasWindow);
-            if (hasWindow) { inst.HadWindow = true; inst.WindowGoneSince = null; }
+            bool alive = GroupAlive(inst, out bool hasWindow, out int windowPid);
+            if (hasWindow)
+            {
+                inst.HadWindow = true;
+                inst.WindowGoneSince = null;
+                if (!inst.Positioned && windowPid > 0)
+                {
+                    inst.Positioned = true;
+                    int slot = inst.CascadeSlot;
+                    Task.Run(() => WindowArranger.Place(windowPid, slot));
+                }
+            }
 
             bool graceOver = (DateTimeOffset.Now - inst.LaunchedAt).TotalSeconds >= 25;
 
@@ -172,7 +189,9 @@ public sealed class InstanceManager : IDisposable
 
             if (closedToTray || processGone)
             {
-                lock (_gate) _instances.Remove(inst);
+                bool empty;
+                lock (_gate) { _instances.Remove(inst); empty = _instances.Count == 0; }
+                if (empty) WindowArranger.Reset();
                 inst.State = InstanceState.Closed;
                 _windows.Unwatch(inst.RootPid);
                 _log?.LogInformation("Instance {Id} gone ({Why})", inst.Id, closedToTray ? "tray-closed" : "exited");
@@ -188,37 +207,32 @@ public sealed class InstanceManager : IDisposable
     }
 
     /// <summary>Is any client process for this instance still running? (job first, WMI fallback)</summary>
-    private bool GroupAlive(RobloxInstance inst, out bool hasWindow)
+    private bool GroupAlive(RobloxInstance inst, out bool hasWindow, out int windowPid)
     {
         hasWindow = false;
+        windowPid = 0;
+        bool alive = false;
 
-        if (inst.Group is { } g)
-        {
-            var pids = g.Pids();
-            if (pids.Length > 0)
-            {
-                hasWindow = g.HasVisibleWindow();
-                foreach (int pid in pids)
-                    try { if (!Process.GetProcessById(pid).HasExited) return true; } catch { }
-            }
-        }
+        IEnumerable<int> candidates = inst.Group?.Pids() ?? Enumerable.Empty<int>();
+        if (!candidates.Any())
+            candidates = SafeScan()
+                .Where(p => p.CommandLine.Contains(inst.BrowserTrackerId.ToString()))
+                .Select(p => p.Pid);
 
-        // Fallback / stragglers not in the job: match by command line.
-        foreach (var p in SafeScan())
+        foreach (int pid in candidates.Distinct())
         {
-            if (!p.CommandLine.Contains(inst.BrowserTrackerId.ToString())) continue;
-            if (p.Name.Contains("Crash", StringComparison.OrdinalIgnoreCase)) continue;
             try
             {
-                using var proc = Process.GetProcessById(p.Pid);
-                if (proc.HasExited) continue;
-                proc.Refresh();
-                if (proc.MainWindowHandle != IntPtr.Zero) hasWindow = true;
-                return true;
+                using var p = Process.GetProcessById(pid);
+                if (p.HasExited) continue;
+                if (p.ProcessName.Contains("Crash", StringComparison.OrdinalIgnoreCase)) continue;
+                alive = true;
+                p.Refresh();
+                if (p.MainWindowHandle != IntPtr.Zero) { hasWindow = true; windowPid = pid; }
             }
             catch { }
         }
-        return false;
+        return alive;
     }
 
     private void AdoptStragglers(RobloxInstance inst)

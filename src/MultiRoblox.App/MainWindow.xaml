@@ -80,8 +80,6 @@
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="10">
                     <Button Content="Add" Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}" Width="70"/>
                     <Button Content="Remove" Style="{StaticResource DangerButton}" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="70"/>
-                    <Button Content="↑" Style="{StaticResource IconButton}" FontSize="14" Command="{Binding MoveUpCommand}" Margin="6,0,0,0"/>
-                    <Button Content="↓" Style="{StaticResource IconButton}" FontSize="14" Command="{Binding MoveDownCommand}" Margin="4,0,0,0"/>
                 </StackPanel>
 
                 <ListBox x:Name="AccountList" Margin="4" Background="Transparent" BorderThickness="0"
@@ -246,6 +244,11 @@
                                 Command="{Binding AddFavoriteCommand}" ToolTip="Save this place to your favorites"/>
                         <Button Grid.Column="3" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
                     </Grid>
+
+                    <!-- resolved game name for the entered Place ID -->
+                    <TextBlock Margin="2,10,0,4" MinHeight="18" TextTrimming="CharacterEllipsis"
+                               Text="{Binding GameName}" FontWeight="SemiBold" Foreground="{DynamicResource SubtleText}"
+                               Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Manual}"/>
 
                     <!-- Favorites -->
                     <DockPanel Margin="0,12,0,0" Height="160"
