@@ -16,6 +16,7 @@ public sealed class InstanceManager : IDisposable
     private readonly ObservableCollection<RobloxInstance> _instances = new();
     private readonly object _gate = new();
     private readonly Timer _poll;
+    private readonly WindowLifetimeWatcher _windows;
 
     /// <summary>Live <see cref="Process"/> handles we've hooked <see cref="Process.Exited"/> on, keyed by pid.</summary>
     private readonly Dictionary<int, Process> _watched = new();
@@ -23,9 +24,10 @@ public sealed class InstanceManager : IDisposable
     public InstanceManager(ILogger<InstanceManager>? log = null)
     {
         _log = log;
-        // The poll is now just a safety net for the one case with no OS event: the client window
-        // hidden to the system tray while its process keeps running. Real exits fire Process.Exited.
-        _poll = new Timer(_ => SafePoll(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(4));
+        _windows = new WindowLifetimeWatcher(log);
+        // Event-driven: Process.Exited handles crash/kill/exit; WindowLifetimeWatcher handles
+        // "closed to the tray". The poll is now just a slow safety net.
+        _poll = new Timer(_ => SafePoll(), null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(8));
     }
 
     /// <summary>Subscribe to Process.Exited for a pid so we react the instant it dies (no poll lag).</summary>
@@ -44,6 +46,11 @@ public sealed class InstanceManager : IDisposable
                     SafePoll();   // re-evaluate every instance immediately
                 };
                 _watched[pid] = p;
+                _windows.Watch(pid, () =>
+                {
+                    _log?.LogInformation("pid {Pid} lost its last visible window", pid);
+                    SafePoll();
+                });
             }
             catch { /* already gone */ }
         }
@@ -192,6 +199,7 @@ public sealed class InstanceManager : IDisposable
             if (_watched.Remove(pid, out var p))
                 try { p.Dispose(); } catch { }
         }
+        _windows.Unwatch(pid);
     }
 
     private static bool IsAlive(int pid)
@@ -221,6 +229,7 @@ public sealed class InstanceManager : IDisposable
     public void Dispose()
     {
         _poll.Dispose();
+        _windows.Dispose();
         lock (_gate)
         {
             foreach (var p in _watched.Values) try { p.Dispose(); } catch { }
