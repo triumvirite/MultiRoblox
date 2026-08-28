@@ -29,11 +29,11 @@ jobs:
         id: ver
         shell: pwsh
         run: |
-          # major.minor come from <Version> in the csproj; the patch auto-increments per CI run,
-          # so every push publishes a strictly newer version the in-app updater can compare against.
+          # The release version is the <Version> in the csproj, verbatim. Bump it there to publish
+          # a new version the in-app updater will notify users about.
           $csproj = Get-Content src/MultiRoblox.App/MultiRoblox.App.csproj -Raw
-          if ($csproj -notmatch '<Version>(\d+)\.(\d+)') { throw "no major.minor <Version> in csproj" }
-          $version = "$($Matches[1]).$($Matches[2]).${{ github.run_number }}"
+          if ($csproj -notmatch '<Version>(\d+\.\d+\.\d+)</Version>') { throw "no X.Y.Z <Version> in csproj" }
+          $version = $Matches[1]
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
           "tag=v$version"    | Out-File $env:GITHUB_OUTPUT -Append
           Write-Host "version = v$version"
