@@ -10,7 +10,6 @@
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-        <Setter Property="Icon" Value="pack://application:,,,/Assets/app.ico"/>
     </Style>
 
     <Style TargetType="{x:Type TextBlock}">

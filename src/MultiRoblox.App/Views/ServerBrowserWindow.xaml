@@ -5,7 +5,8 @@
         Title="Server browser" Height="600" Width="820" WindowStartupLocation="CenterOwner"
         d:DataContext="{d:DesignInstance vm:ServerBrowserViewModel}"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d">
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d"
+        Background="{DynamicResource Bg}" Icon="/Assets/app.ico">
     <DockPanel Margin="12">
         <Grid DockPanel.Dock="Top">
             <Grid.ColumnDefinitions>

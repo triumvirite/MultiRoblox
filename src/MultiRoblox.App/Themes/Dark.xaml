@@ -5,8 +5,8 @@
     <Color x:Key="SurfaceColor">#2B2D31</Color>
     <Color x:Key="Surface2Color">#35373C</Color>
     <Color x:Key="BorderColor">#3F4147</Color>
-    <Color x:Key="TextColor">#F2F3F5</Color>
-    <Color x:Key="SubtleTextColor">#9BA1A6</Color>
+    <Color x:Key="TextColor">#FFFFFF</Color>
+    <Color x:Key="SubtleTextColor">#B7BDC6</Color>
     <Color x:Key="AccentColor">#5865F2</Color>
     <Color x:Key="AccentTextColor">#FFFFFF</Color>
     <Color x:Key="OkColor">#3BA55D</Color>
