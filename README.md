@@ -14,9 +14,10 @@ This one is source-visible, stores nothing off your machine, and talks only to o
 **You do not install anything.** MultiRoblox is a single program you run directly.
 
 1. Get the app:
-   - **Easiest:** open [**Releases**](../../releases), grab `MultiRoblox-vX.Y.Z-win-x64.zip` from the
-     newest one, unzip, double-click `MultiRoblox.exe`. Nothing to install — the .NET runtime is
-     bundled inside. (SmartScreen the first time: *More info → Run anyway*.)
+   - **Easiest:** open [**Releases**](../../releases) and from the newest one download either
+     `MultiRoblox.exe` (raw — just double-click) or `MultiRoblox-vX.Y.Z-win-x64.zip` (exe + README).
+     Nothing to install — the .NET runtime is bundled inside. (SmartScreen the first time:
+     *More info → Run anyway*.)
    - **From source:** install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
      (`winget install Microsoft.DotNet.SDK.8`), then build your own exe + Desktop shortcut:
      ```

@@ -46,8 +46,12 @@ jobs:
         run: |
           $pub = "src/MultiRoblox.App/bin/Release/net8.0-windows/win-x64/publish"
           if (-not (Test-Path "$pub/MultiRoblox.exe")) { throw "MultiRoblox.exe not produced" }
-          $zip = "MultiRoblox-${{ steps.ver.outputs.tag }}-win-x64.zip"
+          $tag = "${{ steps.ver.outputs.tag }}"
+          $exe = "MultiRoblox.exe"
+          $zip = "MultiRoblox-$tag-win-x64.zip"
+          Copy-Item "$pub/MultiRoblox.exe" $exe
           Compress-Archive -Path "$pub/MultiRoblox.exe", "README.md" -DestinationPath $zip -Force
+          "exe=$exe" | Out-File $env:GITHUB_OUTPUT -Append
           "zip=$zip" | Out-File $env:GITHUB_OUTPUT -Append
 
       - name: Point the version tag at this commit
@@ -69,7 +73,7 @@ jobs:
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
             gh release edit $tag --title $title --notes $notes --target ${{ github.sha }} --latest --prerelease=false
-            gh release upload $tag $zip --clobber
+            gh release upload $tag $zip "${{ steps.pkg.outputs.exe }}" --clobber
           } else {
-            gh release create $tag $zip --title $title --notes $notes --target ${{ github.sha }} --latest
+            gh release create $tag $zip "${{ steps.pkg.outputs.exe }}" --title $title --notes $notes --target ${{ github.sha }} --latest
           }
