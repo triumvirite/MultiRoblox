@@ -580,20 +580,31 @@ public partial class MainViewModel : ObservableObject
         var vm = Instances.FirstOrDefault(x => x.Model.Id == inst.Id);
         if (vm is null) return;
         vm.Sync();
+
+        // Client closed (externally via X / Alt+F4, or it exited / crashed) — drop it from the list.
+        if (inst.State is InstanceState.Closed or InstanceState.Disconnected or InstanceState.Terminated)
+        {
+            bool relaunch = inst.State is InstanceState.Closed or InstanceState.Disconnected
+                            && _svc.Settings.Current.AutoRelaunchOnDisconnect;
+            Instances.Remove(vm);
+            if (relaunch)
+            {
+                var account = _svc.Accounts.FindById(inst.AccountId);
+                if (account is not null)
+                    _ = LaunchAsync(account, inst.JobId is { Length: > 0 }
+                        ? JoinRequest.Server(inst.PlaceId, inst.JobId)
+                        : JoinRequest.Place(inst.PlaceId));
+            }
+            else
+            {
+                Status = $"{inst.AccountLabel} closed.";
+            }
+        }
+
         var acc = Accounts.FirstOrDefault(a => a.Id == inst.AccountId);
         if (acc is not null)
             acc.IsInGame = Instances.Any(x => x.Model.AccountId == inst.AccountId
                                               && x.Model.State is InstanceState.Running or InstanceState.Launching);
-
-        if (inst.State is InstanceState.Disconnected && _svc.Settings.Current.AutoRelaunchOnDisconnect)
-        {
-            var account = _svc.Accounts.FindById(inst.AccountId);
-            if (account is not null)
-                _ = LaunchAsync(account, inst.JobId is { Length: > 0 }
-                    ? JoinRequest.Server(inst.PlaceId, inst.JobId)
-                    : JoinRequest.Place(inst.PlaceId));
-            Instances.Remove(vm);
-        }
     }
 
     private static void OnUi(Action a) => Application.Current.Dispatcher.Invoke(a);

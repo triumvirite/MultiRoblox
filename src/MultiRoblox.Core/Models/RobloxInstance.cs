@@ -5,6 +5,8 @@ public enum InstanceState
     Launching,
     Running,
     Disconnected,
+    /// <summary>The client window was closed (X / Alt+F4) or the process exited on its own.</summary>
+    Closed,
     Terminated,
     Crashed,
 }
@@ -24,6 +26,9 @@ public sealed class RobloxInstance
     public List<int> ProcessIds { get; } = new();
 
     public InstanceState State { get; set; } = InstanceState.Launching;
+
+    /// <summary>Set once the client has shown a visible window; lets us tell "closed to tray" from "still starting".</summary>
+    public bool HadWindow { get; set; }
 
     /// <summary>Last known log file path for this instance (used by the watchdog).</summary>
     public string? LogFile { get; set; }

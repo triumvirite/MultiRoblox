@@ -106,23 +106,60 @@ public sealed class InstanceManager : IDisposable
     {
         foreach (var inst in Snapshot())
         {
-            if (inst.State is InstanceState.Terminated) continue;
+            if (inst.State is InstanceState.Terminated or InstanceState.Closed) continue;
 
             AdoptMatchingProcesses(inst);
-            bool anyAlive = inst.ProcessIds.Any(IsAlive);
 
-            var newState = inst.State;
-            if (anyAlive)
-                newState = InstanceState.Running;
-            else if (inst.State is InstanceState.Running)
-                newState = InstanceState.Disconnected; // client exited on its own
-
-            if (newState != inst.State)
+            // Look at the actual RobloxPlayerBeta processes: is any alive, and does any still have a
+            // visible window? Closing via X / Alt+F4 hides the window to the tray while the process
+            // lingers, so "had a window, now doesn't" == the user closed it.
+            bool anyClientAlive = false, hasWindow = false;
+            foreach (int pid in inst.ProcessIds.ToArray())
             {
-                inst.State = newState;
+                try
+                {
+                    using var p = Process.GetProcessById(pid);
+                    if (p.HasExited) continue;
+                    if (SafeName(p).Contains("Crash", StringComparison.OrdinalIgnoreCase)) continue;
+                    anyClientAlive = true;
+                    p.Refresh();
+                    if (p.MainWindowHandle != IntPtr.Zero) hasWindow = true;
+                }
+                catch { }
+            }
+            if (hasWindow) inst.HadWindow = true;
+
+            bool stillStarting = !inst.HadWindow
+                                 && (DateTimeOffset.Now - inst.LaunchedAt).TotalSeconds < 25;
+
+            bool closedByUser = inst.HadWindow && !hasWindow;   // window gone
+            bool processGone = !anyClientAlive && !stillStarting; // whole client exited
+
+            if (closedByUser || processGone)
+            {
+                _log?.LogInformation("Instance {Id} closed ({Reason}); cleaning up",
+                    inst.Id, closedByUser ? "window closed" : "process exited");
+                CleanUp(inst);
+                inst.State = InstanceState.Closed;
+                InstanceChanged?.Invoke(this, inst);
+            }
+            else if (anyClientAlive && inst.State != InstanceState.Running)
+            {
+                inst.State = InstanceState.Running;
                 InstanceChanged?.Invoke(this, inst);
             }
         }
+    }
+
+    /// <summary>Hard-kill everything belonging to an instance (clears any tray leftover).</summary>
+    private void CleanUp(RobloxInstance inst)
+    {
+        AdoptMatchingProcesses(inst);
+        foreach (int pid in inst.ProcessIds.ToArray())
+            KillTree(pid);
+        foreach (var p in ProcessScanner.Scan())
+            if (p.CommandLine.Contains(inst.BrowserTrackerId.ToString()))
+                KillTree(p.Pid);
     }
 
     private static bool IsAlive(int pid)
