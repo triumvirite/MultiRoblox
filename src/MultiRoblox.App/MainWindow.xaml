@@ -12,7 +12,9 @@
 
     <Window.Resources>
         <app:HealthToBrushConverter x:Key="HealthBrush"/>
+        <app:AccountStatusToBrushConverter x:Key="StatusBrush"/>
         <app:BoolToVisibilityConverter x:Key="BoolVis"/>
+        <app:BoolToVisibilityConverter x:Key="BoolVisInv" Invert="True"/>
         <app:NullToBoolConverter x:Key="NotNull"/>
         <app:UpdateStatusToBrushConverter x:Key="UpdateBrush"/>
         <app:EqualsToVisibilityConverter x:Key="EqVis"/>
@@ -69,11 +71,22 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="10,10,10,6">
                     <TextBlock Text="Accounts" Style="{StaticResource H1}"/>
-                    <DockPanel Margin="0,8,0,0">
-                        <Button DockPanel.Dock="Right" Content="+" Style="{StaticResource IconButton}" Margin="6,0,0,0"
-                                FontSize="22" Command="{Binding NewCategoryCommand}" ToolTip="Create a new category"/>
-                        <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" VerticalAlignment="Center"/>
-                    </DockPanel>
+                    <ComboBox Margin="0,8,0,0" ItemsSource="{Binding Categories}"
+                              SelectedItem="{Binding SelectedCategory}" VerticalAlignment="Center">
+                        <ComboBox.ItemContainerStyle>
+                            <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding}" Value="{x:Static vm:MainViewModel.NewCategoryItem}">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                                        <Setter Property="BorderThickness" Value="0,1,0,0"/>
+                                        <Setter Property="Padding" Value="8,8"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource SubtleText}"/>
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.ItemContainerStyle>
+                    </ComboBox>
                     <TextBox Margin="0,8,0,0" Tag="Search"
                              Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
@@ -94,6 +107,7 @@
                          DragOver="AccountList_DragOver"
                          Drop="AccountList_Drop"
                          ContextMenuOpening="AccountList_ContextMenuOpening"
+                         MouseDoubleClick="AccountList_MouseDoubleClick"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:AccountItemViewModel}">
@@ -111,15 +125,41 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Ellipse Width="9" Height="9" VerticalAlignment="Center"
-                                         Fill="{Binding Health, Converter={StaticResource HealthBrush}}"/>
+                                <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                    <!-- signed-in / not-checked: a coloured dot -->
+                                    <Ellipse x:Name="Dot" Width="9" Height="9"
+                                             Fill="{Binding StatusKind, Converter={StaticResource StatusBrush}}"/>
+                                    <!-- in-game: the ingame glyph, tinted green -->
+                                    <Rectangle x:Name="InGameIcon" Width="17" Height="17" Visibility="Collapsed" Fill="{DynamicResource Ok}">
+                                        <Rectangle.OpacityMask>
+                                            <ImageBrush ImageSource="pack://application:,,,/Assets/ingame.png"/>
+                                        </Rectangle.OpacityMask>
+                                    </Rectangle>
+                                    <!-- needs re-login: a bold ! -->
+                                    <TextBlock x:Name="Bang" Text="!" Visibility="Collapsed" FontWeight="Bold" FontSize="20"
+                                               Foreground="{DynamicResource Danger}" LineHeight="14" LineStackingStrategy="BlockLineHeight"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                     <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock x:Name="Sub" Text="{Binding HealthText}" FontSize="12"
-                                               Foreground="{DynamicResource SubtleText}"/>
+                                    <TextBlock x:Name="Sub" Text="{Binding StatusText}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleText}"/>
                                 </StackPanel>
                             </Grid>
                             <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="InGame">
+                                    <Setter TargetName="Sub" Property="Foreground" Value="{DynamicResource Ok}"/>
+                                    <Setter TargetName="Dot" Property="Visibility" Value="Collapsed"/>
+                                    <Setter TargetName="InGameIcon" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="SignedIn">
+                                    <Setter TargetName="Sub" Property="Foreground" Value="{DynamicResource Info}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="NeedsLogin">
+                                    <Setter TargetName="Sub" Property="Foreground" Value="{DynamicResource Danger}"/>
+                                    <Setter TargetName="Dot" Property="Visibility" Value="Collapsed"/>
+                                    <Setter TargetName="Bang" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
                                     <Setter TargetName="Sub" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
                                 </DataTrigger>
@@ -143,7 +183,7 @@
                                ToolTip="{Binding SelectionSummary}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Grid>
-                            <Button x:Name="UpdateButton" Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}"
+                            <Button x:Name="UpdateButton" Click="UpdateButton_Click" ToolTip="{Binding UpdateTooltip}"
                                     AutomationProperties.Name="UpdateToggle">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
@@ -154,7 +194,7 @@
 
                             <!-- update dropdown, centred under the button -->
                             <Popup x:Name="UpdatePopup" IsOpen="{Binding UpdatePopupOpen, Mode=TwoWay}" StaysOpen="False"
-                                   PlacementTarget="{Binding ElementName=UpdateButton}"
+                                   PlacementTarget="{Binding ElementName=UpdateButton}" Closed="UpdatePopup_Closed"
                                    Placement="Custom" VerticalOffset="6" AllowsTransparency="True">
                                 <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
                                         BorderThickness="1" CornerRadius="8" Width="300" Padding="14"
@@ -208,10 +248,85 @@
             </Border>
 
             <Border DockPanel.Dock="Bottom" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
-                <TextBlock Text="{Binding Status}" Margin="16,6" Style="{StaticResource Subtle}"/>
+                <Grid Margin="12,5">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Content="{Binding AccountViewToggleText}" Command="{Binding ToggleAccountViewCommand}" Padding="10,3"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Status}" Style="{StaticResource Subtle}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,4,0"
+                               TextTrimming="CharacterEllipsis"/>
+                </Grid>
             </Border>
 
-            <Grid Background="{DynamicResource Bg}">
+            <Grid><!-- toggled content area -->
+
+            <!-- ============ Account grid view (Excel-style) ============ -->
+            <DockPanel Background="{DynamicResource Bg}" Margin="16"
+                       Visibility="{Binding ShowAccountGrid, Converter={StaticResource BoolVis}}">
+                <DataGrid x:Name="AccountsGrid" ItemsSource="{Binding AccountGrid}" PreviewMouseWheel="Grid_PreviewMouseWheel"
+                          PreviewMouseLeftButtonDown="AccountsGrid_CellSingleClick">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Username" Width="180" IsReadOnly="True"
+                                            Binding="{Binding Label}"
+                                            ElementStyle="{StaticResource GridDisplayText}"/>
+                        <DataGridTextColumn Header="Alias" Width="160"
+                                            Binding="{Binding Alias}"
+                                            ElementStyle="{StaticResource GridDisplayText}"
+                                            EditingElementStyle="{StaticResource GridEditText}"/>
+                        <DataGridTextColumn Header="Description" Width="300"
+                                            Binding="{Binding Note}"
+                                            ElementStyle="{StaticResource GridDisplayText}"
+                                            EditingElementStyle="{StaticResource GridEditText}"/>
+                        <DataGridTemplateColumn Header="Categories" Width="220" IsReadOnly="True">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <ToggleButton x:Name="CatBtn" Style="{StaticResource FlatToggle}" Focusable="False"
+                                                      PreviewMouseDown="CatBtn_PreviewDown">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding CategoriesText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <Path Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center"
+                                                      Data="M0,0 L4,4 L8,0 Z" Fill="{DynamicResource SubtleText}"/>
+                                            </Grid>
+                                        </ToggleButton>
+                                        <Popup IsOpen="{Binding IsChecked, ElementName=CatBtn}" StaysOpen="True"
+                                               PlacementTarget="{Binding ElementName=CatBtn}" Placement="Bottom"
+                                               AllowsTransparency="True" PopupAnimation="Fade" Closed="CatPopup_Closed">
+                                            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
+                                                    BorderThickness="1" CornerRadius="6" Padding="6" MinWidth="170" Margin="0,2,0,0">
+                                                <StackPanel>
+                                                    <ItemsControl ItemsSource="{Binding CategoryChoices}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <CheckBox Content="{Binding Name}" Margin="2,3"
+                                                                          IsChecked="{Binding IsMember, Mode=TwoWay}"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <Border Height="1" Background="{DynamicResource Border}" Margin="0,5"/>
+                                                    <Button Content="Add new category…" HorizontalAlignment="Left"
+                                                            Background="Transparent" BorderThickness="0" Padding="2,3"
+                                                            Command="{Binding DataContext.AddCategoryToRowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </DockPanel>
+
+            <Grid Background="{DynamicResource Bg}"
+                  Visibility="{Binding ShowAccountGrid, Converter={StaticResource BoolVisInv}}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -337,7 +452,9 @@
                     </DockPanel>
 
                     <WrapPanel Margin="0,14,0,0">
+                        <!-- Refresh session: hidden — re-login (right-click / double-click a signed-out account) covers it
                         <Button Content="Refresh session" Command="{Binding RefreshAccountCommand}" Margin="0,0,8,8"/>
+                        -->
                         <Button Content="Utilities" Command="{Binding OpenUtilitiesCommand}" Margin="0,0,8,8"/>
                         <Button Content="Open in browser" Command="{Binding OpenInBrowserCommand}" Margin="0,0,8,8"/>
                         <!-- Copy cookie: disabled for now
@@ -361,41 +478,44 @@
                                     Command="{Binding TerminateAllCommand}" Padding="10,3"/>
                         </Grid>
                     </Border>
-                    <ListView x:Name="InstancesList" ItemsSource="{Binding Instances}" Padding="0"
-                              BorderThickness="1,0,1,1"
-                              Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
-                              SizeChanged="InstancesList_SizeChanged">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn x:Name="ColAccount" Header="Account" DisplayMemberBinding="{Binding AccountLabel}"/>
-                                <GridViewColumn x:Name="ColWhere" Header="Where">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding PlaceLine}"/>
-                                                <TextBlock Text="{Binding GameName}" Style="{StaticResource Subtle}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           Visibility="{Binding GameName, Converter={StaticResource NotEmptyVis}}"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn x:Name="ColState" Header="State" Width="110" DisplayMemberBinding="{Binding StateText}"/>
-                                <GridViewColumn x:Name="ColLeave" Header="" Width="86">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Content="Leave" Style="{StaticResource DangerButton}" Padding="8,3"
-                                                    HorizontalAlignment="Stretch"
-                                                    Command="{Binding DataContext.LeaveInstanceCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
-                                                    CommandParameter="{Binding}"/>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
+                    <DataGrid ItemsSource="{Binding Instances}" IsReadOnly="True" BorderThickness="1,0,1,1"
+                              RowHeight="44" PreviewMouseWheel="Grid_PreviewMouseWheel">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Account" Width="200"
+                                                Binding="{Binding AccountLabel}"
+                                                ElementStyle="{StaticResource GridDisplayText}"/>
+                            <DataGridTemplateColumn Header="Where" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding PlaceLine}"/>
+                                            <TextBlock Text="{Binding GameName}" Style="{StaticResource Subtle}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Visibility="{Binding GameName, Converter={StaticResource NotEmptyVis}}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="State" Width="120"
+                                                Binding="{Binding StateText}"
+                                                ElementStyle="{StaticResource GridDisplayText}"/>
+                            <DataGridTemplateColumn Header="" Width="*" MinWidth="90" CanUserResize="False"
+                                                    HeaderStyle="{StaticResource LastColumnHeader}"
+                                                    CellStyle="{StaticResource LastColumnCell}">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="Leave" Style="{StaticResource DangerButton}"
+                                                Width="90" Height="35" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                Command="{Binding DataContext.LeaveInstanceCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </DockPanel>
             </Grid>
+            </Grid><!-- /toggled content area -->
         </DockPanel>
     </Grid>
 </Window>

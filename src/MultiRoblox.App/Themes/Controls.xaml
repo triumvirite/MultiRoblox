@@ -270,22 +270,191 @@
         </Setter>
     </Style>
 
+    <!-- transparent 8px drag handle on a column-header's right edge -->
+    <Style x:Key="ColumnGripper" TargetType="{x:Type Thumb}">
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="Margin" Value="0,0,-4,0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border Background="{TemplateBinding Background}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="{x:Type GridViewColumnHeader}">
         <Setter Property="Background" Value="{DynamicResource Surface2}"/>
         <Setter Property="Foreground" Value="{DynamicResource SubtleText}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Padding" Value="5,6"/>
+        <Setter Property="MinWidth" Value="100"/>
         <Setter Property="HorizontalContentAlignment" Value="Left"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type GridViewColumnHeader}">
-                    <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Border}"
-                            BorderThickness="0,0,0,1" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                    <Grid>
+                        <!-- visible separators on the right + bottom -->
+                        <Border x:Name="hb" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="0,0,1,1" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <!-- keep the drag-to-resize gripper the default template provides -->
+                        <Thumb x:Name="PART_HeaderGripper" HorizontalAlignment="Right" Style="{StaticResource ColumnGripper}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Role" Value="Padding">
+                            <Setter TargetName="hb" Property="BorderThickness" Value="0,0,0,1"/>
+                            <Setter TargetName="PART_HeaderGripper" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- vertical gridlines on data rows so columns line up with the header separators -->
+    <Style x:Key="GridCell" TargetType="{x:Type Border}">
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+        <Setter Property="Padding" Value="5,3"/>
+    </Style>
+
+    <!-- borderless toggle used for the account grid's "Categories" cell -->
+    <Style x:Key="FlatToggle" TargetType="{x:Type ToggleButton}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource SubtleText}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="{TemplateBinding Background}" Padding="0">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============ data grid (Excel-style editable table) ============ -->
+
+    <Style x:Key="GridEditText" TargetType="{x:Type TextBox}">
+        <Setter Property="Background" Value="{DynamicResource Surface2}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TextBox}">
+                    <Border Background="{TemplateBinding Background}">
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Padding="{TemplateBinding Padding}"/>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <Style x:Key="GridDisplayText" TargetType="{x:Type TextBlock}">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="Background" Value="{DynamicResource Surface2}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SubtleText}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Padding" Value="5,6"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridColumnHeader}">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Border}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <Thumb x:Name="PART_LeftHeaderGripper" HorizontalAlignment="Left" Style="{StaticResource ColumnGripper}"/>
+                        <Thumb x:Name="PART_RightHeaderGripper" HorizontalAlignment="Right" Style="{StaticResource ColumnGripper}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridRow}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+    </Style>
+
+    <!-- for a trailing column that anchors to the grid's right edge: no separator on its right side -->
+    <Style x:Key="LastColumnHeader" TargetType="{x:Type DataGridColumnHeader}"
+           BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+    <Style x:Key="LastColumnCell" TargetType="{x:Type DataGridCell}"
+           BasedOn="{StaticResource {x:Type DataGridCell}}">
+        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridCell}">
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridCell}">
+                    <Border x:Name="cb" Background="{TemplateBinding Background}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="{TemplateBinding BorderThickness}" Padding="5,0">
+                        <ContentPresenter VerticalAlignment="Center" Margin="0"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="cb" Property="Background" Value="{DynamicResource Accent}"/>
+                            <Setter Property="Foreground" Value="{StaticResource OnAccent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEditing" Value="True">
+                            <Setter TargetName="cb" Property="Background" Value="{DynamicResource Surface2}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type DataGrid}">
+        <Setter Property="Background" Value="{DynamicResource Surface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource Text}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="RowBackground" Value="Transparent"/>
+        <Setter Property="GridLinesVisibility" Value="None"/>
+        <Setter Property="HeadersVisibility" Value="Column"/>
+        <Setter Property="AutoGenerateColumns" Value="False"/>
+        <Setter Property="CanUserAddRows" Value="False"/>
+        <Setter Property="CanUserDeleteRows" Value="False"/>
+        <Setter Property="CanUserResizeColumns" Value="True"/>
+        <Setter Property="CanUserResizeRows" Value="False"/>
+        <Setter Property="CanUserReorderColumns" Value="True"/>
+        <Setter Property="CanUserSortColumns" Value="True"/>
+        <Setter Property="SelectionUnit" Value="Cell"/>
+        <Setter Property="SelectionMode" Value="Single"/>
+        <Setter Property="RowHeight" Value="30"/>
+        <Setter Property="ColumnHeaderHeight" Value="30"/>
+        <Setter Property="MinColumnWidth" Value="100"/>
+        <Setter Property="EnableRowVirtualization" Value="True"/>
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
     </Style>
 
     <!-- ============ combo box ============ -->
@@ -303,7 +472,7 @@
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border Background="{DynamicResource Surface2}" BorderBrush="{DynamicResource Border}"
+                                    <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
                                             BorderThickness="1" CornerRadius="6" Padding="8,5">
                                         <Grid>
                                             <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -338,7 +507,8 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ComboBoxItem}">
-                    <Border x:Name="b" Background="Transparent" Padding="{TemplateBinding Padding}">
+                    <Border x:Name="b" Background="Transparent" Padding="{TemplateBinding Padding}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
                         <ContentPresenter/>
                     </Border>
                     <ControlTemplate.Triggers>
