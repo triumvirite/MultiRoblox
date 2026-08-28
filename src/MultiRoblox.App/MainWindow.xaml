@@ -134,8 +134,14 @@
         <DockPanel Grid.Column="1">
             <Border DockPanel.Dock="Top" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
                 <Grid Margin="16,10">
-                    <TextBlock Text="{Binding SelectionSummary, FallbackValue='Select an account'}" Style="{StaticResource H1}"/>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding SelectionSummary, FallbackValue='Select an account'}" Style="{StaticResource H1}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0"
+                               ToolTip="{Binding SelectionSummary}"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Grid>
                             <Button x:Name="UpdateButton" Command="{Binding CheckForUpdateCommand}" ToolTip="{Binding UpdateTooltip}"
                                     AutomationProperties.Name="UpdateToggle">

@@ -30,7 +30,7 @@ public partial class MainViewModel : ObservableObject
     public IReadOnlyList<AccountItemViewModel> SelectedAccounts { get; private set; } = Array.Empty<AccountItemViewModel>();
 
     public string SelectionSummary =>
-        SelectedAccounts.Count > 1 ? $"{SelectedAccounts.Count} accounts selected"
+        SelectedAccounts.Count > 1 ? string.Join(", ", SelectedAccounts.Select(a => a.Label))
         : SelectedAccount?.Label ?? "Select an account";
 
     public void SetSelectedAccounts(IEnumerable<AccountItemViewModel> items)
