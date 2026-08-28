@@ -24,21 +24,28 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Work out the version
+        id: ver
+        shell: pwsh
+        run: |
+          # major.minor come from <Version> in the csproj; the patch auto-increments per CI run,
+          # so every push publishes a strictly newer version the in-app updater can compare against.
+          $csproj = Get-Content src/MultiRoblox.App/MultiRoblox.App.csproj -Raw
+          if ($csproj -notmatch '<Version>(\d+)\.(\d+)') { throw "no major.minor <Version> in csproj" }
+          $version = "$($Matches[1]).$($Matches[2]).${{ github.run_number }}"
+          "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
+          "tag=v$version"    | Out-File $env:GITHUB_OUTPUT -Append
+          Write-Host "version = v$version"
+
       - name: Test
         run: dotnet test MultiRoblox.sln -c Debug --nologo
 
       - name: Publish single-file exe
-        run: dotnet publish src/MultiRoblox.App/MultiRoblox.App.csproj -c Release --nologo
-
-      - name: Read version from the project
-        id: ver
-        shell: pwsh
-        run: |
-          $csproj = Get-Content src/MultiRoblox.App/MultiRoblox.App.csproj -Raw
-          if ($csproj -notmatch '<Version>([^<]+)</Version>') { throw "no <Version> in csproj" }
-          $v = $Matches[1].Trim()
-          "tag=v$v" | Out-File $env:GITHUB_OUTPUT -Append
-          Write-Host "version = v$v"
+        run: >
+          dotnet publish src/MultiRoblox.App/MultiRoblox.App.csproj -c Release --nologo
+          -p:Version=${{ steps.ver.outputs.version }}
+          -p:FileVersion=${{ steps.ver.outputs.version }}
+          -p:AssemblyVersion=${{ steps.ver.outputs.version }}
 
       - name: Package
         id: pkg

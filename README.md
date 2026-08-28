@@ -28,13 +28,14 @@ This one is source-visible, stores nothing off your machine, and talks only to o
      to run without building an exe.
 
    **Releases are automated.** GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
-   builds + tests on every push to `main`, then creates/updates a release named after the
-   `<Version>` in [`MultiRoblox.App.csproj`](src/MultiRoblox.App/MultiRoblox.App.csproj) (currently
-   `v1.0.0`) with the fresh `MultiRoblox.exe` attached.
+   builds + tests on every push to `main`, then cuts a new release `v<major>.<minor>.<build>` with the
+   fresh `MultiRoblox.exe` + zip attached and marks it *Latest*.
 
-   - Push a normal code change → the current version's release gets the new build.
-   - Ready to call it a new version? Bump `<Version>` (e.g. `1.1.0`) and push → a new `v1.1.0`
-     release appears; the old one stays as history.
+   - `major.minor` come from `<Version>` in [`MultiRoblox.App.csproj`](src/MultiRoblox.App/MultiRoblox.App.csproj).
+   - `build` auto-increments each CI run, so **every push is a strictly newer version** and the in-app
+     updater always has something to compare against. Bump `<Version>` to `1.1` to start a new minor line.
+   - Local `dotnet run` / `publish.ps1` builds carry version `1.0.0`, so the updater will always offer
+     the newest CI build over a from-source build — expected.
 2. Launch it. Click **Add** (bottom-left), sign in through the built-in login window, and the account
    appears in the sidebar.
 3. Click an account → type a **Place ID** → **Join**.

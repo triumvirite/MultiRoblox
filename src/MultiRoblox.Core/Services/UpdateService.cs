@@ -35,10 +35,16 @@ public sealed class UpdateService
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
     }
 
-    public static Version CurrentVersion =>
-        Assembly.GetEntryAssembly()?.GetName().Version
-        ?? Assembly.GetExecutingAssembly().GetName().Version
-        ?? new Version(0, 0, 0);
+    public static Version CurrentVersion
+    {
+        get
+        {
+            var v = Assembly.GetEntryAssembly()?.GetName().Version
+                    ?? Assembly.GetExecutingAssembly().GetName().Version
+                    ?? new Version(0, 0, 0);
+            return Normalize(v);
+        }
+    }
 
     public async Task<UpdateInfo> CheckAsync(CancellationToken ct = default)
     {
