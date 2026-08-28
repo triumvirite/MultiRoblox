@@ -164,13 +164,23 @@
                                                      Value="{Binding UpdateProgress}"
                                                      Visibility="{Binding UpdateInstalling, Converter={StaticResource BoolVis}}"
                                                      Foreground="{DynamicResource Accent}" Background="{DynamicResource Surface2}"/>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                                            <Button Content="Update now" Style="{StaticResource AccentButton}"
-                                                    Command="{Binding InstallUpdateCommand}"
-                                                    IsEnabled="{Binding UpdateCanInstall}"
-                                                    Visibility="{Binding UpdateCanInstall, Converter={StaticResource BoolVis}}"/>
-                                            <Button Content="Close" Margin="8,0,0,0" Command="{Binding DismissUpdateCommand}"/>
-                                        </StackPanel>
+                                        <Grid Margin="0,12,0,0">
+                                            <TextBlock VerticalAlignment="Center">
+                                                <Hyperlink NavigateUri="https://github.com/triumvirite/MultiRoblox"
+                                                           RequestNavigate="Hyperlink_RequestNavigate"
+                                                           Foreground="{DynamicResource Accent}" TextDecorations="Underline">
+                                                    GitHub repo
+                                                </Hyperlink>
+                                            </TextBlock>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <Button Content="Update now" Style="{StaticResource AccentButton}"
+                                                        Command="{Binding InstallUpdateCommand}"
+                                                        IsEnabled="{Binding UpdateCanInstall}"
+                                                        Visibility="{Binding UpdateCanInstall, Converter={StaticResource BoolVis}}"/>
+                                                <Button Content="Close" Margin="8,0,0,0" Style="{StaticResource DangerButton}"
+                                                        Command="{Binding DismissUpdateCommand}"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </Popup>

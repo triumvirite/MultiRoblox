@@ -118,6 +118,12 @@ public partial class MainWindow : Window
             Vm.JoinFavoriteCommand.Execute(Vm.SelectedFavorite);
     }
 
+    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+        e.Handled = true;
+    }
+
     private void Recent_DoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (Vm.SelectedRecent is not null && Vm.JoinRecentCommand.CanExecute(Vm.SelectedRecent))
