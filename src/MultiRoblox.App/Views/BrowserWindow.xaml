@@ -3,6 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="Roblox" Height="760" Width="1100" WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource Bg}" Icon="/Assets/app.ico">
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" Icon="/Assets/app.ico">
     <wv2:WebView2 x:Name="Web"/>
 </Window>
