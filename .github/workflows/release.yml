@@ -73,17 +73,15 @@ jobs:
           if ($tag -eq 'latest') {
             $title = "Latest build"
             $notes = "Automatically built from commit $sha on $(Get-Date -Format 'yyyy-MM-dd HH:mm') UTC.`nUnzip and run MultiRoblox.exe - no install, .NET bundled. Windows 10/11 x64."
-            $pre   = '--prerelease'
           } else {
             $title = "MultiRoblox $tag"
             $notes = "Release $tag (commit $sha).`nUnzip and run MultiRoblox.exe - no install, .NET bundled. Windows 10/11 x64."
-            $pre   = ''
           }
 
-          $exists = gh release view $tag 2>$null
+          gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) {
-            gh release edit $tag --title $title --notes $notes --target ${{ github.sha }}
+            gh release edit $tag --title $title --notes $notes --target ${{ github.sha }} --latest
             gh release upload $tag $zip --clobber
           } else {
-            gh release create $tag $zip --title $title --notes $notes --target ${{ github.sha }} $pre
+            gh release create $tag $zip --title $title --notes $notes --target ${{ github.sha }} --latest
           }
