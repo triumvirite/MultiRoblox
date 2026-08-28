@@ -28,7 +28,7 @@
                     <TextBlock TextWrapping="Wrap" Style="{StaticResource Subtle}" Margin="0,4,0,8"
                                Text="Paste a .ROBLOSECURITY value (with or without the warning prefix). You can also paste the whole cookie header."/>
                     <TextBox x:Name="CookieBox" AcceptsReturn="True" Height="260" TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                             VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                         <TextBlock x:Name="PasteStatus" VerticalAlignment="Center" Margin="0,0,12,0" Style="{StaticResource Subtle}"/>
                         <Button Content="Validate &amp; add" Style="{StaticResource AccentButton}" Click="AddPasted_Click"/>
