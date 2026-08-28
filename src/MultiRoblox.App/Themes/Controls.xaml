@@ -218,16 +218,27 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ListView}">
-                    <!-- Square corners: the GridView header row fills the top edge and a CornerRadius
-                         here just makes it poke a square corner past a rounded one (WPF Borders don't
-                         clip their child to CornerRadius). A crisp rectangle is the right look for a
-                         data table anyway. -->
-                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    <!-- Hand-rolled so (a) no Aero white hover/focus outline and (b) the GridView
+                         header row is edge-to-edge: the default GridViewScrollViewer style insets it
+                         a few px, leaving the panel background showing on the sides. Square corners
+                         because the header fills the top edge anyway. -->
+                    <Border Background="{DynamicResource Surface2}" BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True">
-                        <ScrollViewer Focusable="False"
-                                      Style="{DynamicResource {x:Static GridView.GridViewScrollViewerStyleKey}}">
-                            <ItemsPresenter/>
-                        </ScrollViewer>
+                        <DockPanel>
+                            <GridViewHeaderRowPresenter DockPanel.Dock="Top" Margin="0"
+                                Columns="{Binding View.Columns, RelativeSource={RelativeSource TemplatedParent}}"
+                                ColumnHeaderContainerStyle="{Binding View.ColumnHeaderContainerStyle, RelativeSource={RelativeSource TemplatedParent}}"
+                                ColumnHeaderTemplate="{Binding View.ColumnHeaderTemplate, RelativeSource={RelativeSource TemplatedParent}}"
+                                ColumnHeaderTemplateSelector="{Binding View.ColumnHeaderTemplateSelector, RelativeSource={RelativeSource TemplatedParent}}"
+                                AllowsColumnReorder="{Binding View.AllowsColumnReorder, RelativeSource={RelativeSource TemplatedParent}}"
+                                ColumnHeaderContextMenu="{Binding View.ColumnHeaderContextMenu, RelativeSource={RelativeSource TemplatedParent}}"
+                                ColumnHeaderToolTip="{Binding View.ColumnHeaderToolTip, RelativeSource={RelativeSource TemplatedParent}}"
+                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            <ScrollViewer Focusable="False" Padding="0" Background="{TemplateBinding Background}"
+                                          HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                                <ItemsPresenter/>
+                            </ScrollViewer>
+                        </DockPanel>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>

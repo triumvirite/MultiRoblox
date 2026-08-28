@@ -67,9 +67,10 @@ DPAPI), `settings.json`, `themes\`, `logs\`. Nothing leaves your PC.
 - **Multi-instance** — launching a second account opens a second Roblox client instead of closing the
   first. Toggle it off in Settings to return to Roblox's normal one-at-a-time behaviour.
 - **Clean leave** — the **Leave** button on a running instance kills that client's whole process tree
-  immediately, so it doesn't linger in the background or the system tray. **Close all** does the lot.
-- **Running instances panel** — every client the app started, which account and place it's on, and its
-  state (Launching / Running / Disconnected).
+  immediately, so it doesn't linger in the background or the system tray. **Close all** does the lot
+  (both ask first). Quitting MultiRoblox closes every client it launched — it warns you when any are running.
+- **Running instances panel** — every client the app started, which account and place it's on (with the
+  game name), and its state.
 - **Background keep-alive** — periodically refreshes each stored session so cookies stay valid without
   you ever manually re-logging in. Interval configurable (0 = off).
 - **Auto-relaunch** — optionally rejoin an instance automatically if it disconnects or gets kicked.

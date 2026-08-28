@@ -71,7 +71,7 @@ public partial class App : Application
         var window = new MainWindow { DataContext = mainVm };
         MainWindow = window;
 
-        _tray = new TrayIcon(window, () => ShutdownApp());
+        _tray = new TrayIcon(window, RequestQuit);
 
         window.Show();
 
@@ -116,6 +116,26 @@ public partial class App : Application
 
     private bool _disposed;
 
+    /// <summary>
+    /// User-initiated quit (tray "Quit" or the window X when close-to-tray is off). Warns first if
+    /// Roblox instances are running, since quitting closes them. Returns false if the user cancels.
+    /// </summary>
+    public bool RequestQuit()
+    {
+        int running = Services?.Instances.Snapshot().Count(i => i.State != Core.Models.InstanceState.Terminated) ?? 0;
+        if (running > 0)
+        {
+            var answer = MessageBox.Show(
+                $"MultiRoblox is running {running} Roblox instance{(running == 1 ? "" : "s")}. " +
+                $"Closing MultiRoblox will close {(running == 1 ? "it" : "them")} too.\n\nClose anyway?",
+                "Close MultiRoblox", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+            if (answer != MessageBoxResult.Yes) return false;
+        }
+        ShutdownApp();
+        return true;
+    }
+
+    /// <summary>Unconditional shutdown: kill every launched Roblox client, then exit the process.</summary>
     public void ShutdownApp()
     {
         Cleanup();
@@ -137,6 +157,7 @@ public partial class App : Application
     {
         if (_disposed) return;
         _disposed = true;
+        try { Services?.Instances.KillAllNow(); } catch { }   // closing MultiRoblox closes its Roblox clients
         try { _tray?.Dispose(); } catch { }
         try { _singleInstance?.Dispose(); } catch { }
         try { Services?.Dispose(); } catch { }

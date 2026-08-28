@@ -109,6 +109,21 @@ public sealed class InstanceManager : IDisposable
         Task.Run(SweepOrphans);
     }
 
+    /// <summary>
+    /// Synchronous teardown for app shutdown — the process is about to exit, so there's no time for
+    /// the usual background kill tasks. TerminateJobObject is instant and atomic.
+    /// </summary>
+    public void KillAllNow()
+    {
+        foreach (var i in Snapshot())
+        {
+            try { i.Group?.KillAll(); } catch { }
+            try { i.Group?.Dispose(); } catch { }
+            i.Group = null;
+        }
+        try { SweepOrphans(); } catch { }
+    }
+
     // --- kill mechanics (background only) --------------------------
 
     private void KillGroup(RobloxInstance inst, string reason)

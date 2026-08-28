@@ -81,3 +81,12 @@ public sealed class NullToBoolConverter : IValueConverter
     public object Convert(object value, Type t, object p, CultureInfo c) => value is not null;
     public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
 }
+
+/// <summary>Non-empty string → Visible, empty/null → Collapsed.</summary>
+public sealed class StringToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type t, object p, CultureInfo c) =>
+        string.IsNullOrWhiteSpace(value as string) ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object v, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}

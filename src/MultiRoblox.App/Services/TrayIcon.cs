@@ -9,9 +9,11 @@ public sealed class TrayIcon : IDisposable
 {
     private readonly Forms.NotifyIcon _icon;
     private readonly Window _window;
-    private readonly Action _onQuit;
+    private readonly Func<bool> _onQuit;
 
-    public TrayIcon(Window window, Action onQuit)
+    /// <param name="onQuit">Attempt to quit; returns false if the user cancelled (e.g. declined the
+    /// "close running instances?" warning).</param>
+    public TrayIcon(Window window, Func<bool> onQuit)
     {
         _window = window;
         _onQuit = onQuit;
@@ -19,7 +21,7 @@ public sealed class TrayIcon : IDisposable
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open MultiRoblox", null, (_, _) => Restore());
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Quit", null, (_, _) => onQuit());
+        menu.Items.Add("Quit", null, (_, _) => _onQuit());
 
         _icon = new Forms.NotifyIcon
         {
@@ -43,13 +45,12 @@ public sealed class TrayIcon : IDisposable
                 e.Cancel = true;
                 _window.Hide();
             }
-            else
+            else if (!_onQuit())
             {
-                // No close-to-tray: the X button means quit. Without this the app (ShutdownMode
-                // = OnExplicitShutdown) would keep running headless and a later tray click would
-                // throw "Cannot call Show after a Window has closed".
-                _onQuit();
+                // User backed out of the "close running instances?" warning — keep the window open.
+                e.Cancel = true;
             }
+            // else: quitting (ShutdownApp calls Environment.Exit, so this handler won't return).
         };
     }
 

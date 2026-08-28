@@ -34,15 +34,43 @@ public partial class MainWindow : Window
 
     // ---------- Running-instances columns flex with the window ----------
 
-    private void InstancesList_SizeChanged(object sender, SizeChangedEventArgs e)
+    private ScrollViewer? _instancesScroll;
+    private bool _scrollHooked;
+
+    private void InstancesList_SizeChanged(object sender, SizeChangedEventArgs e) => LayoutInstanceColumns();
+
+    private void LayoutInstanceColumns()
     {
-        // GridView has no star sizing; split the leftover width (after the fixed State/Leave
-        // columns, borders and scrollbar) 45/55 between Account and Where.
-        double fixedCols = ColState.ActualWidth + ColLeave.ActualWidth;
-        double avail = InstancesList.ActualWidth - fixedCols - SystemParameters.VerticalScrollBarWidth - 8;
+        // GridView has no star sizing. Fill the exact viewport width (which already excludes the
+        // scrollbar when one is shown) so the header row has no empty gap on either side.
+        if (_instancesScroll is null)
+        {
+            _instancesScroll = FindDescendant<ScrollViewer>(InstancesList);
+            if (_instancesScroll is not null && !_scrollHooked)
+            {
+                _instancesScroll.ScrollChanged += (_, _) => LayoutInstanceColumns();
+                _scrollHooked = true;
+            }
+        }
+
+        double content = _instancesScroll?.ViewportWidth ?? (InstancesList.ActualWidth - 2);
+        double avail = content - ColState.ActualWidth - ColLeave.ActualWidth;
         if (avail < 160) return;
-        ColAccount.Width = Math.Round(avail * 0.45);
-        ColWhere.Width = Math.Round(avail * 0.55);
+
+        double account = Math.Round(avail * 0.42);
+        ColAccount.Width = account;
+        ColWhere.Width = avail - account;   // absorbs the remainder exactly
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T hit) return hit;
+            if (FindDescendant<T>(child) is { } deep) return deep;
+        }
+        return null;
     }
 
     // ---------- account drag-to-reorder with live preview ----------

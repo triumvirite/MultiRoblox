@@ -445,7 +445,9 @@ public partial class MainViewModel : ObservableObject
             Status = $"Launching {acc.DisplayLabel}…";
             var result = await _svc.Launcher.LaunchAsync(acc, join);
             var inst = _svc.Instances.Register(acc, join, result.Process, result.Group, result.BrowserTrackerId);
-            OnUi(() => Instances.Add(new InstanceItemViewModel(inst)));
+            InstanceItemViewModel row = new(inst);
+            OnUi(() => Instances.Add(row));
+            _ = FillInstanceGameNameAsync(row, acc);
             Status = $"Launched {acc.DisplayLabel}.";
             _ = RecordRecentAsync(join.PlaceId, acc);
         }
@@ -455,6 +457,23 @@ public partial class MainViewModel : ObservableObject
             MessageBox.Show(ex.Message, "Launch failed", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { Busy = false; }
+    }
+
+    /// <summary>Look up the place name for a running-instances row (second line of the "Where" column).</summary>
+    private async Task FillInstanceGameNameAsync(InstanceItemViewModel row, Account acc)
+    {
+        long placeId = row.PlaceId;
+        if (_gameNameCache.TryGetValue(placeId, out var cached)) { OnUi(() => row.GameName = cached); return; }
+        try
+        {
+            var name = await new GamesClient(_svc.Pool.Get(acc)).GetPlaceNameAsync(placeId);
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                _gameNameCache[placeId] = name!;
+                OnUi(() => row.GameName = name!);
+            }
+        }
+        catch { /* name is a nicety; leave the id-only line */ }
     }
 
     [RelayCommand]
@@ -470,6 +489,11 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void TerminateAll()
     {
+        if (Instances.Count == 0) return;
+        if (MessageBox.Show("Are you sure you want to close all instances?", "MultiRoblox",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+
         Instances.Clear();
         try { _svc.Instances.TerminateAll(); } catch (Exception ex) { Status = "Close all failed: " + ex.Message; return; }
         Status = "Closed all instances.";

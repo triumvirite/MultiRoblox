@@ -16,6 +16,7 @@
         <app:NullToBoolConverter x:Key="NotNull"/>
         <app:UpdateStatusToBrushConverter x:Key="UpdateBrush"/>
         <app:EqualsToVisibilityConverter x:Key="EqVis"/>
+        <app:StringToVisibilityConverter x:Key="NotEmptyVis"/>
         <app:RelativeTimeConverter x:Key="Ago"/>
 
         <!-- join-mode toggle buttons: accent fill when their mode is active -->
@@ -347,23 +348,38 @@
 
                 <!-- ============ Running instances ============ -->
                 <DockPanel Grid.Row="1" Margin="16,0,16,16">
-                    <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Running instances" Style="{StaticResource Subtle}" FontWeight="SemiBold"
-                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                        <Button Grid.Column="1" Content="Close all" Style="{StaticResource DangerButton}"
-                                Command="{Binding TerminateAllCommand}" Padding="10,4"/>
-                    </Grid>
-                    <ListView x:Name="InstancesList" ItemsSource="{Binding Instances}"
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource Surface2}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1,1,1,3" Padding="10,7">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Running instances" Style="{StaticResource Subtle}" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <Button Grid.Column="1" Content="Close all" Style="{StaticResource DangerButton}"
+                                    Command="{Binding TerminateAllCommand}" Padding="10,3"/>
+                        </Grid>
+                    </Border>
+                    <ListView x:Name="InstancesList" ItemsSource="{Binding Instances}" Padding="0"
+                              BorderThickness="1,0,1,1"
                               Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
                               SizeChanged="InstancesList_SizeChanged">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn x:Name="ColAccount" Header="Account" DisplayMemberBinding="{Binding AccountLabel}"/>
-                                <GridViewColumn x:Name="ColWhere" Header="Where" DisplayMemberBinding="{Binding Where}"/>
+                                <GridViewColumn x:Name="ColWhere" Header="Where">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding PlaceLine}"/>
+                                                <TextBlock Text="{Binding GameName}" Style="{StaticResource Subtle}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Visibility="{Binding GameName, Converter={StaticResource NotEmptyVis}}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
                                 <GridViewColumn x:Name="ColState" Header="State" Width="110" DisplayMemberBinding="{Binding StateText}"/>
                                 <GridViewColumn x:Name="ColLeave" Header="" Width="86">
                                     <GridViewColumn.CellTemplate>
