@@ -1,9 +1,12 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using MultiRoblox.App.ViewModels;
+using MultiRoblox.Core.Models;
 
 namespace MultiRoblox.App;
 
@@ -20,6 +23,84 @@ public partial class MainWindow : Window
         AddHandler(PreviewMouseDownEvent, new MouseButtonEventHandler(DismissCatPopupOnOutsideClick), handledEventsToo: true);
         AddHandler(PreviewMouseDownEvent, new MouseButtonEventHandler(CommitGridEditOnOutsideClick), handledEventsToo: true);
         Deactivated += (_, _) => { CloseCatPopup(); AccountsGrid?.CommitEdit(DataGridEditingUnit.Row, true); };
+
+        Loaded += (_, _) => RestoreGridLayout(AccountsGrid, "AccountsGrid");
+        Closing += (_, _) => SaveGridLayout(AccountsGrid, "AccountsGrid");
+        AccountsGrid.ColumnReordered += (_, _) => SaveGridLayout(AccountsGrid, "AccountsGrid");
+        AccountsGrid.Sorting += (_, _) => Dispatcher.BeginInvoke(new Action(() => SaveGridLayout(AccountsGrid, "AccountsGrid")));
+        AccountsGrid.AddHandler(Thumb.DragCompletedEvent,
+            new DragCompletedEventHandler((_, _) => SaveGridLayout(AccountsGrid, "AccountsGrid")));
+    }
+
+    // ---------- data-grid layout persistence (column width / order / sort) ----------
+
+    private bool _restoringGrid;
+
+    private void RestoreGridLayout(DataGrid grid, string id)
+    {
+        if (!App.Services.Settings.Current.GridLayouts.TryGetValue(id, out var saved) || saved is null || saved.Count == 0)
+            return;
+
+        _restoringGrid = true;
+        try
+        {
+            foreach (var st in saved)
+            {
+                var col = grid.Columns.FirstOrDefault(c => (c.Header as string) == st.Header);
+                if (col is null) continue;
+                if (st.Width > 0 && col.CanUserResize) col.Width = new DataGridLength(st.Width);
+                if (st.DisplayIndex >= 0 && st.DisplayIndex < grid.Columns.Count) col.DisplayIndex = st.DisplayIndex;
+                col.SortDirection = st.SortDirection switch
+                {
+                    "Ascending" => ListSortDirection.Ascending,
+                    "Descending" => ListSortDirection.Descending,
+                    _ => null,
+                };
+            }
+
+            var sortCol = grid.Columns.FirstOrDefault(c => c.SortDirection is not null);
+            var view = CollectionViewSource.GetDefaultView(grid.ItemsSource);
+            if (sortCol?.SortMemberPath is { Length: > 0 } path && view is not null)
+            {
+                view.SortDescriptions.Clear();
+                view.SortDescriptions.Add(new SortDescription(path, sortCol.SortDirection!.Value));
+            }
+        }
+        finally { _restoringGrid = false; }
+    }
+
+    private void SaveGridLayout(DataGrid grid, string id)
+    {
+        if (_restoringGrid) return;
+
+        App.Services.Settings.Current.GridLayouts[id] = grid.Columns.Select(c => new GridColumnState
+        {
+            Header = c.Header as string ?? "",
+            Width = c.CanUserResize ? c.ActualWidth : 0,
+            DisplayIndex = c.DisplayIndex,
+            SortDirection = c.SortDirection?.ToString(),
+        }).ToList();
+        App.Services.Settings.Save();
+    }
+
+    // ---------- sidebar category list: right-click to remove ----------
+
+    private void RemoveCategoryMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        // sender (MenuItem) -> its ContextMenu -> PlacementTarget is the ComboBoxItem that was right-clicked
+        var target = (((sender as MenuItem)?.Parent) as ContextMenu)?.PlacementTarget as ComboBoxItem;
+        if (target?.DataContext is not string cat) return;
+        if (cat == MainViewModel.AllCategories || cat == MainViewModel.NewCategoryItem) return;
+
+        CategoryBox.IsDropDownOpen = false;
+
+        int n = Vm.CountInCategory(cat);
+        string msg = n > 0
+            ? $"Remove the category “{cat}”?\n\nIt will be taken off {n} account{(n == 1 ? "" : "s")}. This can't be undone."
+            : $"Remove the category “{cat}”?";
+        if (MessageBox.Show(msg, "Remove category", MessageBoxButton.YesNo,
+                MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes)
+            Vm.RemoveCategoryEverywhere(cat);
     }
 
     private void AccountList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>

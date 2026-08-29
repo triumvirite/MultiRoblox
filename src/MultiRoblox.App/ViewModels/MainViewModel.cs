@@ -269,6 +269,36 @@ public partial class MainViewModel : ObservableObject
         Status = $"Removed *{item.Label}* from all categories.";
     }
 
+    /// <summary>How many accounts currently sit in <paramref name="category"/>.</summary>
+    public int CountInCategory(string category) =>
+        _svc.Accounts.Accounts.Count(a => a.Categories.Any(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)));
+
+    /// <summary>Delete a category outright: drop it from the settings list and from every account.</summary>
+    public void RemoveCategoryEverywhere(string category)
+    {
+        if (IsReservedCategory(category)) return;
+
+        int touched = 0;
+        foreach (var a in _svc.Accounts.Accounts)
+            if (a.Categories.RemoveAll(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)) > 0)
+            {
+                _svc.Accounts.Update(a);
+                touched++;
+            }
+
+        _svc.Settings.Current.Categories.RemoveAll(c => c.Equals(category, StringComparison.OrdinalIgnoreCase));
+        _svc.Settings.Save();
+
+        if (SelectedCategory.Equals(category, StringComparison.OrdinalIgnoreCase))
+            SelectedCategory = AllCategories;
+
+        RebuildCategories();
+        ReloadAccounts();
+        Status = touched > 0
+            ? $"Removed category *{category}* from {touched} account(s)."
+            : $"Removed category *{category}*.";
+    }
+
     private string _lastRealCategory = AllCategories;
 
     partial void OnSelectedCategoryChanged(string value)

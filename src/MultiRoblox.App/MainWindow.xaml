@@ -21,6 +21,13 @@
         <app:StringToVisibilityConverter x:Key="NotEmptyVis"/>
         <app:RelativeTimeConverter x:Key="Ago"/>
 
+        <!-- Per-item context menu for the sidebar category list. Kept as a non-shared resource so
+             each ComboBoxItem gets its own instance; a code-behind menu would steal capture and
+             collapse the ComboBox dropdown with it. -->
+        <ContextMenu x:Key="CategoryItemMenu" x:Shared="False">
+            <MenuItem Header="Remove category" Click="RemoveCategoryMenuItem_Click"/>
+        </ContextMenu>
+
         <!-- join-mode toggle buttons: accent fill when their mode is active -->
         <Style x:Key="ModeManual" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
@@ -71,12 +78,20 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="10,10,10,6">
                     <TextBlock Text="Accounts" Style="{StaticResource H1}"/>
-                    <ComboBox Margin="0,8,0,0" ItemsSource="{Binding Categories}"
+                    <ComboBox x:Name="CategoryBox" Margin="0,8,0,0" ItemsSource="{Binding Categories}"
                               SelectedItem="{Binding SelectedCategory}" VerticalAlignment="Center">
                         <ComboBox.ItemContainerStyle>
                             <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}">
+                                <!-- Declarative ContextMenu: WPF's popup service keeps the ComboBox
+                                     dropdown open while this child menu is up (a code-behind menu
+                                     steals capture and both collapse). -->
+                                <Setter Property="ContextMenu" Value="{StaticResource CategoryItemMenu}"/>
                                 <Style.Triggers>
+                                    <DataTrigger Binding="{Binding}" Value="{x:Static vm:MainViewModel.AllCategories}">
+                                        <Setter Property="ContextMenu" Value="{x:Null}"/>
+                                    </DataTrigger>
                                     <DataTrigger Binding="{Binding}" Value="{x:Static vm:MainViewModel.NewCategoryItem}">
+                                        <Setter Property="ContextMenu" Value="{x:Null}"/>
                                         <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
                                         <Setter Property="BorderThickness" Value="0,1,0,0"/>
                                         <Setter Property="Padding" Value="8,8"/>

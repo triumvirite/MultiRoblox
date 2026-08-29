@@ -48,4 +48,7 @@ public sealed class AppSettings
 
     /// <summary>Optional extra passphrase layer on top of DPAPI. Empty = DPAPI only.</summary>
     public bool UsePassphrase { get; set; } = false;
+
+    /// <summary>Saved column layout (width / order / sort) per data grid, keyed by a stable grid id.</summary>
+    public Dictionary<string, List<GridColumnState>> GridLayouts { get; set; } = new();
 }
