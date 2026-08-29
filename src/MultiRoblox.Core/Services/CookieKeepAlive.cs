@@ -71,7 +71,8 @@ public sealed class CookieKeepAlive : IDisposable
         }
         catch (Exception ex)
         {
-            _log?.LogDebug(ex, "keep-alive transient failure for {User}", account.Username);
+            _log?.LogInformation(ex, "keep-alive: transient failure for {User} — keeping prior health {Prior}",
+                account.Username, GetHealth(account.Id));
             return GetHealth(account.Id); // network blip — keep prior state
         }
 

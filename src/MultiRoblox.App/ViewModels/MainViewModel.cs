@@ -869,8 +869,18 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddAccount()
     {
+        var before = _svc.Accounts.Accounts.Select(a => a.Id).ToHashSet();
         var win = new AddAccountWindow(_svc) { Owner = Application.Current.MainWindow };
-        if (win.ShowDialog() == true) { RebuildCategories(); ReloadAccounts(); Status = "Account added."; }
+        if (win.ShowDialog() != true) return;
+
+        RebuildCategories();
+        ReloadAccounts();
+        Status = "Account added.";
+
+        // The Add dialog already validated the cookie, but the new row's health starts "unknown"
+        // (KeepAlive has no cached result) — refresh it so it shows "Signed in" without a restart.
+        foreach (var row in Accounts.Where(r => !before.Contains(r.Id)).ToList())
+            _ = RefreshAccountHealthAsync(row);
     }
 
     /// <summary>Import accounts from ic3w0lf22's Roblox Account Manager (its AccountData.json).</summary>

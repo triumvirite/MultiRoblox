@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.RegularExpressions;
 using System.Windows;
 using Microsoft.Web.WebView2.Core;
@@ -31,12 +32,24 @@ public partial class AddAccountWindow : Window
         {
             var env = await CoreWebView2Environment.CreateAsync(userDataFolder: AppPaths.WebViewData);
             await Web.EnsureCoreWebView2Async(env);
+
+            // Always start signed-out: wipe any session left from a previous "Sign in" so the user
+            // never has to click Reset. Done on open (not close) — deferring a window close to run
+            // this async wipe clears DialogResult and breaks the caller's post-add handling.
+            try
+            {
+                var clear = Web.CoreWebView2.Profile.ClearBrowsingDataAsync();
+                await Task.WhenAny(clear, Task.Delay(3000));
+            }
+            catch (Exception ex) { Serilog.Log.Warning(ex, "AddAccount: clearing prior browser data failed"); }
+
             Web.CoreWebView2.Navigate("https://www.roblox.com/login");
             Web.NavigationCompleted += async (_, _) => await TryCaptureCookieAsync();
             LoginStatus.Text = "Waiting for login…";
         }
         catch (Exception ex)
         {
+            Serilog.Log.Error(ex, "AddAccount: WebView2 init failed");
             LoginStatus.Text = "WebView2 unavailable: " + ex.Message;
         }
     }
@@ -56,6 +69,7 @@ public partial class AddAccountWindow : Window
         }
         catch (Exception ex)
         {
+            Serilog.Log.Error(ex, "AddAccount: cookie capture failed");
             LoginStatus.Text = "Error: " + ex.Message;
             _adding = false;
         }
@@ -121,6 +135,7 @@ public partial class AddAccountWindow : Window
         }
         catch (Exception ex)
         {
+            Serilog.Log.Error(ex, "AddAccount: validate/add failed");
             status("Failed: " + ex.Message);
         }
         finally
@@ -150,6 +165,14 @@ public partial class AddAccountWindow : Window
             }
         }
         catch { }
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        // Best-effort wipe on the way out too (fire-and-forget, no close deferral). The reliable
+        // clear happens on the next open in OnLoaded.
+        try { Web?.CoreWebView2?.Profile.ClearBrowsingDataAsync(); } catch { }
+        base.OnClosing(e);
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
