@@ -240,7 +240,7 @@ public partial class MainViewModel : ObservableObject
             _svc.Accounts.Update(item.Model);
             item.Refresh();
         }
-        Status = $"Added {item.Label} to {category}.";
+        Status = $"Added *{item.Label}* to *{category}*.";
     }
 
     public void UnassignCategory(AccountItemViewModel item, string category)
@@ -249,7 +249,7 @@ public partial class MainViewModel : ObservableObject
         {
             _svc.Accounts.Update(item.Model);
             item.Refresh();
-            Status = $"Removed {item.Label} from {category}.";
+            Status = $"Removed *{item.Label}* from *{category}*.";
         }
     }
 
@@ -266,7 +266,7 @@ public partial class MainViewModel : ObservableObject
         item.Model.Categories.Clear();
         _svc.Accounts.Update(item.Model);
         item.Refresh();
-        Status = $"Removed {item.Label} from all categories.";
+        Status = $"Removed *{item.Label}* from all categories.";
     }
 
     private string _lastRealCategory = AllCategories;
@@ -435,7 +435,7 @@ public partial class MainViewModel : ObservableObject
                 await LaunchAsync(acc, join);
                 if (i < accounts.Count - 1) await Task.Delay(2000);   // let Roblox settle between launches
             }
-            if (accounts.Count > 1) Status = $"Launched {accounts.Count} accounts into place {join.PlaceId}.";
+            if (accounts.Count > 1) Status = $"Launched *{accounts.Count} accounts* into place {join.PlaceId}.";
         }
         finally
         {
@@ -511,7 +511,7 @@ public partial class MainViewModel : ObservableObject
         _svc.Settings.Current.QuickJoinPlaceId = placeId;
         _svc.Settings.Current.QuickJoinName = QuickJoinName;
         _svc.Settings.Save();
-        Status = placeId == 0 ? "Quick Join cleared." : $"Quick Join set to {(string.IsNullOrWhiteSpace(QuickJoinName) ? $"Place {placeId}" : QuickJoinName)}.";
+        Status = placeId == 0 ? "Quick Join cleared." : $"Quick Join set to *{(string.IsNullOrWhiteSpace(QuickJoinName) ? $"Place {placeId}" : QuickJoinName)}*.";
     }
 
     /// <summary>True when every account we'd Quick-Join is already in that game (nothing to launch).</summary>
@@ -549,7 +549,7 @@ public partial class MainViewModel : ObservableObject
         if (QuickJoinPlaceId == 0 || _batchLaunching) return;
         if (IsAccountInPlace(account.Id, QuickJoinPlaceId))
         {
-            Status = $"{account.Label} is already in {QuickJoinValueText}.";
+            Status = $"*{account.Label}* is already in *{QuickJoinValueText}*.";
             return;
         }
         await LaunchManyAsync(new[] { account.Model }, JoinRequest.Place(QuickJoinPlaceId));
@@ -619,7 +619,7 @@ public partial class MainViewModel : ObservableObject
         ReloadFavorites();
         SelectedFavorite = Favorites.FirstOrDefault(f => f.PlaceId == fav.PlaceId);
         JoinModeValue = JoinMode.Favorites;
-        Status = $"Favorited {fav.Name}.";
+        Status = $"Favorited *{fav.Name}*.";
     }
 
     [RelayCommand]
@@ -630,7 +630,7 @@ public partial class MainViewModel : ObservableObject
         _svc.Settings.Current.Favorites.RemoveAll(f => f.PlaceId == game.PlaceId);
         _svc.Settings.Save();
         ReloadFavorites();
-        Status = $"Removed {game.Name} from favorites.";
+        Status = $"Removed *{game.Name}* from favorites.";
     }
 
     [RelayCommand]
@@ -752,19 +752,19 @@ public partial class MainViewModel : ObservableObject
             var stale = Instances.FirstOrDefault(x => x.Model.AccountId == acc.Id);
             if (stale is not null)
             {
-                Status = $"Closing {acc.DisplayLabel}'s current game…";
+                Status = $"Closing *{acc.DisplayLabel}*'s current game…";
                 OnUi(() => Instances.Remove(stale));
                 try { _svc.Instances.Terminate(stale.Model); } catch { }
                 await Task.Delay(1500);   // let the kill land + the singleton free before relaunch
             }
 
-            Status = $"Launching {acc.DisplayLabel}…";
+            Status = $"Launching *{acc.DisplayLabel}*…";
             var result = await _svc.Launcher.LaunchAsync(acc, join);
             var inst = _svc.Instances.Register(acc, join, result.Process, result.Group, result.BrowserTrackerId);
             InstanceItemViewModel row = new(inst);
             OnUi(() => Instances.Add(row));
             _ = FillInstanceGameNameAsync(row, acc);
-            Status = $"Launched {acc.DisplayLabel}.";
+            Status = $"Launched *{acc.DisplayLabel}*.";
             _ = RecordRecentAsync(join.PlaceId, acc);
         }
         catch (Exception ex)
@@ -797,6 +797,20 @@ public partial class MainViewModel : ObservableObject
         catch { /* name is a nicety; leave the id-only line */ }
     }
 
+    /// <summary>Right-click "Leave current instance" — close whatever this account is currently running.</summary>
+    public void LeaveInstanceForAccount(AccountItemViewModel account)
+    {
+        var rows = Instances.Where(x => x.Model.AccountId == account.Id).ToList();
+        if (rows.Count == 0) { Status = $"*{account.Label}* has no running instance."; return; }
+        foreach (var r in rows)
+        {
+            Instances.Remove(r);
+            try { _svc.Instances.Terminate(r.Model); }
+            catch (Exception ex) { Status = "Close failed: " + ex.Message; return; }
+        }
+        Status = $"Closed *{account.Label}*.";
+    }
+
     [RelayCommand]
     private void LeaveInstance(InstanceItemViewModel? item)
     {
@@ -804,7 +818,7 @@ public partial class MainViewModel : ObservableObject
         Instances.Remove(item);                       // drop the row now, don't wait on the kill
         var label = item.AccountLabel;
         try { _svc.Instances.Terminate(item.Model); } catch (Exception ex) { Status = "Close failed: " + ex.Message; return; }
-        Status = $"Closed {label}.";
+        Status = $"Closed *{label}*.";
     }
 
     [RelayCommand]
@@ -892,8 +906,8 @@ public partial class MainViewModel : ObservableObject
         RebuildCategories();
         ReloadAccounts();
         Status = added == 0
-            ? $"Nothing imported — all {skipped} account(s) are already here."
-            : $"Imported {added} account(s)" + (skipped > 0 ? $", skipped {skipped} already present." : ".");
+            ? $"Nothing imported — all *{skipped} account(s)* are already here."
+            : $"Imported *{added} account(s)*" + (skipped > 0 ? $", skipped {skipped} already present." : ".");
 
         // check the freshly imported cookies in the background so the health dots settle
         foreach (var acc in toAdd)
@@ -934,7 +948,7 @@ public partial class MainViewModel : ObservableObject
     private async Task RefreshAccountAsync()
     {
         var vm = SelectedAccount!;
-        Status = $"Checking {vm.Label}…";
+        Status = $"Checking *{vm.Label}*…";
         var health = await _svc.KeepAlive.RefreshAsync(vm.Model);
         vm.Health = health;
         vm.Refresh();
@@ -950,7 +964,7 @@ public partial class MainViewModel : ObservableObject
         if (win.ShowDialog() == true)
         {
             _ = RefreshAccountHealthAsync(vm);
-            Status = $"Re-logged in {vm.Label}.";
+            Status = $"Re-logged in *{vm.Label}*.";
         }
     }
 
@@ -1128,7 +1142,7 @@ public partial class MainViewModel : ObservableObject
         if (inst.State is InstanceState.Closed or InstanceState.Terminated)
         {
             if (vm is not null) Instances.Remove(vm);
-            if (inst.State is InstanceState.Closed) Status = $"{inst.AccountLabel} closed.";
+            if (inst.State is InstanceState.Closed) Status = $"*{inst.AccountLabel}* closed.";
         }
         else vm?.Sync();
 

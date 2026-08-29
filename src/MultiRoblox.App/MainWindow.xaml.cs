@@ -301,6 +301,23 @@ public partial class MainWindow : Window
                 Command = new SimpleCommand(() => { foreach (var t in targets) Vm.ClearCategories(t); }),
             });
 
+        // "Leave Current Instance" — only for accounts that are actually in-game right now.
+        var inGame = targets.Where(t => t.IsInGame).ToList();
+        if (inGame.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem
+            {
+                Header = inGame.Count > 1
+                    ? $"Leave current instances ({inGame.Count})"
+                    : "Leave current instance",
+                Command = new SimpleCommand(() =>
+                {
+                    foreach (var t in inGame) Vm.LeaveInstanceForAccount(t);
+                }),
+            });
+        }
+
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem
         {

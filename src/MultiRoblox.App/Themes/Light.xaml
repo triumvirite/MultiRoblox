@@ -19,6 +19,7 @@
     <SolidColorBrush x:Key="Surface2" Color="{DynamicResource Surface2Color}"/>
     <SolidColorBrush x:Key="Border" Color="{DynamicResource BorderColor}"/>
     <SolidColorBrush x:Key="Text" Color="{DynamicResource TextColor}"/>
+    <SolidColorBrush x:Key="StatusEmphasisText" Color="#FF000000"/>
     <SolidColorBrush x:Key="SubtleText" Color="{DynamicResource SubtleTextColor}"/>
     <SolidColorBrush x:Key="Accent" Color="{DynamicResource AccentColor}"/>
     <SolidColorBrush x:Key="AccentText" Color="{DynamicResource AccentTextColor}"/>
