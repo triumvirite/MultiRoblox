@@ -21,6 +21,7 @@
     <SolidColorBrush x:Key="Text" Color="{DynamicResource TextColor}"/>
     <SolidColorBrush x:Key="StatusEmphasisText" Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="LinkText" Color="#93A0FF"/>
+    <SolidColorBrush x:Key="DescIconIdle" Color="#727880"/>
     <SolidColorBrush x:Key="SubtleText" Color="{DynamicResource SubtleTextColor}"/>
     <SolidColorBrush x:Key="Accent" Color="{DynamicResource AccentColor}"/>
     <SolidColorBrush x:Key="AccentText" Color="{DynamicResource AccentTextColor}"/>

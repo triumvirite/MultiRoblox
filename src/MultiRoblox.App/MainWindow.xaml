@@ -28,6 +28,49 @@
             <MenuItem Click="RemoveCategoryMenuItem_Click"/>
         </ContextMenu>
 
+        <!-- account-row hover card: "Description" header, rule, then the text. Non-shared so each row
+             gets its own; DataContext follows the row it's placed on. -->
+        <ToolTip x:Key="AccountDescriptionTip" x:Shared="False" BorderThickness="1"
+                 BorderBrush="{DynamicResource SubtleText}"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+            <StackPanel MaxWidth="320">
+                <TextBlock Text="Description" FontStyle="Italic" FontSize="11"
+                           Foreground="{DynamicResource SubtleText}"/>
+                <Border Height="1" Background="{DynamicResource SubtleText}" Margin="0,4,0,6"/>
+                <TextBlock Text="{Binding Note}" TextWrapping="Wrap" FontSize="13"
+                           Foreground="{DynamicResource Text}"/>
+            </StackPanel>
+        </ToolTip>
+
+        <!-- same card for the edit-description icon, plus a "click to edit" line so hovering the icon
+             doesn't lose the description. Shows the card only when a description exists. -->
+        <ToolTip x:Key="AccountDescriptionEditTip" x:Shared="False" BorderThickness="1"
+                 BorderBrush="{DynamicResource SubtleText}"
+                 DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+            <StackPanel MaxWidth="320">
+                <StackPanel Visibility="{Binding HasNote, Converter={StaticResource BoolVis}}">
+                    <TextBlock Text="Description" FontStyle="Italic" FontSize="11"
+                               Foreground="{DynamicResource SubtleText}"/>
+                    <Border Height="1" Background="{DynamicResource SubtleText}" Margin="0,4,0,6"/>
+                    <TextBlock Text="{Binding Note}" TextWrapping="Wrap" FontSize="13"
+                               Foreground="{DynamicResource Text}"/>
+                    <Border Height="1" Background="{DynamicResource SubtleText}" Opacity="0.5" Margin="0,7"/>
+                </StackPanel>
+                <TextBlock FontSize="11" FontStyle="Italic" Foreground="{DynamicResource SubtleText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="Click to add a description"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasNote}" Value="True">
+                                    <Setter Property="Text" Value="Click to edit description"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </StackPanel>
+        </ToolTip>
+
         <!-- join-mode toggle buttons: accent fill when their mode is active -->
         <Style x:Key="ModeManual" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="12,6"/><Setter Property="Margin" Value="0,0,6,0"/>
@@ -182,8 +225,8 @@
                                   ToolTipService.HorizontalOffset="10" ToolTipService.ShowOnDisabled="True">
                                 <Grid.Style>
                                     <Style TargetType="Grid">
-                                        <!-- hover shows the account's description to the right, instantly; none if empty -->
-                                        <Setter Property="ToolTip" Value="{Binding Note}"/>
+                                        <!-- hover shows the account's description card to the right, instantly; none if empty -->
+                                        <Setter Property="ToolTip" Value="{StaticResource AccountDescriptionTip}"/>
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding Note}" Value="">
                                                 <Setter Property="ToolTip" Value="{x:Null}"/>
@@ -220,12 +263,17 @@
                                                TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleText}"/>
                                 </StackPanel>
 
-                                <!-- edit-description icon: yellow when a description exists, else subtle grey -->
+                                <!-- edit-description icon: high-contrast when a description exists, else subtle grey.
+                                     Its tooltip repeats the description card so hovering the icon doesn't hide it. -->
                                 <Button Grid.Column="2" VerticalAlignment="Center" Margin="6,0,2,0" Padding="2"
                                         Background="Transparent" BorderThickness="0" Cursor="Hand"
                                         SnapsToDevicePixels="True" UseLayoutRounding="True"
-                                        Click="DescriptionIcon_Click" ToolTip="Edit description">
-                                    <Rectangle Width="20" Height="20" SnapsToDevicePixels="True"
+                                        Click="DescriptionIcon_Click"
+                                        ToolTip="{StaticResource AccountDescriptionEditTip}"
+                                        ToolTipService.InitialShowDelay="0" ToolTipService.BetweenShowDelay="0"
+                                        ToolTipService.ShowDuration="120000"
+                                        ToolTipService.Placement="Right" ToolTipService.HorizontalOffset="10">
+                                    <Rectangle Width="30" Height="30" SnapsToDevicePixels="True"
                                                RenderOptions.BitmapScalingMode="HighQuality">
                                         <Rectangle.OpacityMask>
                                             <ImageBrush ImageSource="pack://application:,,,/Assets/description.png"
@@ -233,10 +281,10 @@
                                         </Rectangle.OpacityMask>
                                         <Rectangle.Style>
                                             <Style TargetType="Rectangle">
-                                                <Setter Property="Fill" Value="{DynamicResource SubtleText}"/>
+                                                <Setter Property="Fill" Value="{DynamicResource DescIconIdle}"/>
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding HasNote}" Value="True">
-                                                        <Setter Property="Fill" Value="{DynamicResource Gold}"/>
+                                                        <Setter Property="Fill" Value="{DynamicResource StatusEmphasisText}"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>

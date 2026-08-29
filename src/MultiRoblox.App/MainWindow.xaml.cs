@@ -397,7 +397,7 @@ public partial class MainWindow : Window
             });
             menu.Items.Add(new MenuItem
             {
-                Header = string.IsNullOrWhiteSpace(one.Alias) ? "Set alias…" : "Change alias…",
+                Header = "Set alias…",
                 Command = new SimpleCommand(() =>
                 {
                     var v = Services.Dialogs.Prompt("Alias", $"Alias for {one.Label}:", one.Alias);
@@ -412,7 +412,7 @@ public partial class MainWindow : Window
                 });
             menu.Items.Add(new MenuItem
             {
-                Header = string.IsNullOrWhiteSpace(one.Note) ? "Set description…" : "Edit description…",
+                Header = "Set description…",
                 Command = new SimpleCommand(() => PromptDescription(one)),
             });
             menu.Items.Add(new Separator());
