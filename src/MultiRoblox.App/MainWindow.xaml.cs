@@ -448,6 +448,24 @@ public partial class MainWindow : Window
                 Header = "Set description…",
                 Command = new SimpleCommand(() => PromptDescription(one)),
             });
+            var token = one.Model.SecurityToken;
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Copy session cookie",
+                IsEnabled = !string.IsNullOrEmpty(token),
+                Command = new SimpleCommand(() =>
+                {
+                    try
+                    {
+                        Clipboard.SetText(token);
+                        Vm.Status = $"Copied *{one.Label}*'s session cookie to the clipboard.";
+                    }
+                    catch (Exception ex)
+                    {
+                        Vm.Status = "Couldn't copy to clipboard: " + ex.Message;
+                    }
+                }),
+            });
             menu.Items.Add(new Separator());
         }
 
