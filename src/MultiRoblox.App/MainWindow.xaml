@@ -326,9 +326,29 @@
                     <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                         <!-- game picked for the active join tab (drives the Join button below); "No game selected" when none -->
                         <TextBlock Text="{Binding SelectedGameHeader, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource SubtleText}" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding SelectionSummary, FallbackValue='Select an account'}" Style="{StaticResource H1}"
-                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectionSummary}"/>
+                                   Foreground="{DynamicResource SubtleText}" TextTrimming="CharacterEllipsis">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasSelectedGame}" Value="False">
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding SelectionSummary, FallbackValue='No account selected'}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectionSummary}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource H1}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SelectedAccount}" Value="{x:Null}">
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                     <!-- Bottom (not Stretch) so the buttons keep their natural height even though the
                          header grew a line when the "selected game" text was added above the title. -->

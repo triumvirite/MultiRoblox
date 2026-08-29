@@ -45,7 +45,7 @@ public partial class MainViewModel : ObservableObject
 
     public string SelectionSummary =>
         SelectedAccounts.Count > 1 ? string.Join(", ", SelectedAccounts.Select(a => a.Label))
-        : SelectedAccount?.Label ?? "Select an account";
+        : SelectedAccount?.Label ?? "No account selected";
 
     public void SetSelectedAccounts(IEnumerable<AccountItemViewModel> items)
     {
