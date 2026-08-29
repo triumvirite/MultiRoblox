@@ -54,6 +54,8 @@ jobs:
 
           $bullets = foreach ($s in $subjects) {
             if ([string]::IsNullOrWhiteSpace($s)) { continue }
+            # skip pure release-plumbing commits (version bumps, "start the X.Y release line")
+            if ($s -match '(?i)release line|bump .*<version>|^(chore|ci): (bump|version)') { continue }
             # split one commit into its listed changes: on ". " and on ", " after a "prefix:"
             $s = $s -replace '^(Add|Fix|CI|UI|Update)[^:]*:\s*', ''
             foreach ($part in ($s -split '(?:\.\s+|;\s+|,\s+)')) {
