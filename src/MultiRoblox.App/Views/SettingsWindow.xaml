@@ -37,6 +37,17 @@
                 <TextBox x:Name="ApiKey" Width="200" Margin="8,0"/>
             </StackPanel>
 
+            <TextBlock Text="Frame rate" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+            <CheckBox x:Name="FpsEnabled" Content="Override Roblox's frame-rate cap" Margin="0,8,0,0"
+                      Checked="FpsEnabled_Changed" Unchecked="FpsEnabled_Changed"/>
+            <StackPanel x:Name="FpsRow" Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="Cap at" VerticalAlignment="Center"/>
+                <TextBox x:Name="FpsTarget" Width="70" Margin="8,0"/>
+                <TextBlock Text="FPS  (0 = uncapped)" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Off leaves Roblox's own cap untouched. Applied to ClientAppSettings.json on launch."
+                       Style="{StaticResource Subtle}" Margin="0,2,0,0"/>
+
             <TextBlock Text="Appearance" Style="{StaticResource H1}" Margin="0,20,0,0"/>
             <ComboBox x:Name="ThemeBox" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"/>
 

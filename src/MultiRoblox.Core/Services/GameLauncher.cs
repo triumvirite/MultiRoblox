@@ -39,6 +39,8 @@ public sealed class GameLauncher
         if (_settings.Current.AllowMultipleInstances)
             _singleton?.EnsureMultiInstance();
 
+        FpsCap.Apply(exe, _settings.Current.FpsUnlockerEnabled, _settings.Current.FpsUnlockerTarget, _log);
+
         var client = _pool.Get(account);
         string ticket = await client.GetAuthTicketAsync(ct);
 

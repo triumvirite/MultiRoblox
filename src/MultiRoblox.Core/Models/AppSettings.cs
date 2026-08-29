@@ -24,7 +24,10 @@ public sealed class AppSettings
     public int WebApiPort { get; set; } = 7963;
     public string WebApiKey { get; set; } = "";
 
-    // FPS unlocker
+    // Frame-rate cap (written to Roblox's ClientAppSettings.json on launch).
+    //   Enabled = false          -> leave Roblox's own cap untouched
+    //   Enabled = true, Target 0 -> uncapped
+    //   Enabled = true, Target n -> capped at n
     public bool FpsUnlockerEnabled { get; set; } = false;
     public int FpsUnlockerTarget { get; set; } = 240;
 

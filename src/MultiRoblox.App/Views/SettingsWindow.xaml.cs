@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using MultiRoblox.App.Services;
 using MultiRoblox.Core;
+using MultiRoblox.Core.Services;
 
 namespace MultiRoblox.App.Views;
 
@@ -26,6 +27,10 @@ public partial class SettingsWindow : Window
         ApiPort.Text = s.WebApiPort.ToString();
         ApiKey.Text = s.WebApiKey;
 
+        FpsEnabled.IsChecked = s.FpsUnlockerEnabled;
+        FpsTarget.Text = s.FpsUnlockerTarget.ToString();
+        FpsRow.IsEnabled = s.FpsUnlockerEnabled;
+
         foreach (var t in ThemeManager.AvailableThemes()) ThemeBox.Items.Add(t);
         ThemeBox.SelectedItem = s.ThemeName;
     }
@@ -41,8 +46,15 @@ public partial class SettingsWindow : Window
         s.WebApiEnabled = ApiEnabled.IsChecked == true;
         s.WebApiPort = int.TryParse(ApiPort.Text, out var p) ? p : 7963;
         s.WebApiKey = ApiKey.Text.Trim();
+        s.FpsUnlockerEnabled = FpsEnabled.IsChecked == true;
+        s.FpsUnlockerTarget = int.TryParse(FpsTarget.Text, out var f) ? Math.Max(0, f) : 0;
         s.ThemeName = ThemeBox.SelectedItem as string ?? "Dark";
         _svc.Settings.Save();
+
+        // Apply the FPS cap now so it takes effect on the next launch even without one first.
+        var exe = RobloxPlayerLocator.Resolve(s.RobloxPlayerPathOverride);
+        if (exe is not null)
+            FpsCap.Apply(exe, s.FpsUnlockerEnabled, s.FpsUnlockerTarget);
 
         _svc.KeepAlive.Start();
         _svc.ApplyMultiInstance();
@@ -62,6 +74,9 @@ public partial class SettingsWindow : Window
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void FpsEnabled_Changed(object sender, RoutedEventArgs e) =>
+        FpsRow.IsEnabled = FpsEnabled.IsChecked == true;
 
     private static void OpenInExplorer(string path)
     {
