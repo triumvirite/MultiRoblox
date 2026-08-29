@@ -87,6 +87,34 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<RecentGame> Recents { get; } = new();
     [ObservableProperty] private RecentGame? _selectedRecent;
 
+    // Drives the "no recent games yet" hint shown in the Recents list.
+    public bool HasNoRecents => Recents.Count == 0;
+
+    // Every highlighted row (Ctrl/Shift) in the favorites / recents lists — Join and Set-as-Quick-Join
+    // act on exactly one, so they grey out when more than one is selected.
+    public IReadOnlyList<FavoriteGame> SelectedFavorites { get; private set; } = Array.Empty<FavoriteGame>();
+    public IReadOnlyList<RecentGame> SelectedRecents { get; private set; } = Array.Empty<RecentGame>();
+
+    public void SetSelectedFavorites(IEnumerable<FavoriteGame> items)
+    {
+        SelectedFavorites = items.ToList();
+        JoinFavoriteCommand.NotifyCanExecuteChanged();
+        SetQuickJoinFromFavoriteCommand.NotifyCanExecuteChanged();
+        RemoveFavoriteCommand.NotifyCanExecuteChanged();
+    }
+
+    public void SetSelectedRecents(IEnumerable<RecentGame> items)
+    {
+        SelectedRecents = items.ToList();
+        JoinRecentCommand.NotifyCanExecuteChanged();
+        SetQuickJoinFromRecentCommand.NotifyCanExecuteChanged();
+        RemoveRecentCommand.NotifyCanExecuteChanged();
+        FavoriteRecentCommand.NotifyCanExecuteChanged();
+    }
+
+    private bool SingleFavorite => SelectedFavorites.Count <= 1;
+    private bool SingleRecent => SelectedRecents.Count <= 1;
+
     [ObservableProperty] private string _finderQuery = "";
     public ObservableCollection<PlayerFindResult> FinderResults { get; } = new();
 
@@ -591,6 +619,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(FavoriteQuickJoinText));
         NotifySelectedGame();
         JoinFavoriteCommand.NotifyCanExecuteChanged();
+        SetQuickJoinFromFavoriteCommand.NotifyCanExecuteChanged();
+        RemoveFavoriteCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedRecentChanged(RecentGame? value)
@@ -598,6 +628,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(RecentQuickJoinText));
         NotifySelectedGame();
         JoinRecentCommand.NotifyCanExecuteChanged();
+        SetQuickJoinFromRecentCommand.NotifyCanExecuteChanged();
+        RemoveRecentCommand.NotifyCanExecuteChanged();
         FavoriteRecentCommand.NotifyCanExecuteChanged();
     }
 
@@ -670,7 +702,9 @@ public partial class MainViewModel : ObservableObject
         SetQuickJoin(link.PlaceId, name);
     }
 
-    [RelayCommand]
+    private bool CanSetQuickJoinFromFavorite() => SelectedFavorite is not null && SingleFavorite;
+
+    [RelayCommand(CanExecute = nameof(CanSetQuickJoinFromFavorite))]
     private void SetQuickJoinFromFavorite(FavoriteGame? game)
     {
         game ??= SelectedFavorite;
@@ -679,7 +713,9 @@ public partial class MainViewModel : ObservableObject
         else SetQuickJoin(game.PlaceId, game.Name);
     }
 
-    [RelayCommand]
+    private bool CanSetQuickJoinFromRecent() => SelectedRecent is not null && SingleRecent;
+
+    [RelayCommand(CanExecute = nameof(CanSetQuickJoinFromRecent))]
     private void SetQuickJoinFromRecent(RecentGame? game)
     {
         game ??= SelectedRecent;
@@ -731,21 +767,29 @@ public partial class MainViewModel : ObservableObject
         Status = $"Favorited *{fav.Name}*.";
     }
 
-    [RelayCommand]
+    private bool CanRemoveFavorite() => SelectedFavorite is not null || SelectedFavorites.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(CanRemoveFavorite))]
     private void RemoveFavorite(FavoriteGame? game)
     {
-        game ??= SelectedFavorite;
-        if (game is null) return;
-        _svc.Settings.Current.Favorites.RemoveAll(f => f.PlaceId == game.PlaceId);
+        var picked = SelectedFavorites.Count > 0
+            ? SelectedFavorites.ToList()
+            : (game ?? SelectedFavorite) is { } g ? new List<FavoriteGame> { g } : new();
+        if (picked.Count == 0) return;
+
+        var ids = picked.Select(f => f.PlaceId).ToHashSet();
+        _svc.Settings.Current.Favorites.RemoveAll(f => ids.Contains(f.PlaceId));
         _svc.Settings.Save();
         ReloadFavorites();
-        Status = $"Removed *{game.Name}* from favorites.";
+        Status = picked.Count == 1
+            ? $"Removed *{picked[0].Name}* from favorites."
+            : $"Removed {picked.Count} games from favorites.";
     }
 
     /// <summary>A launch button — needs an account picked, like the Manual "Join".</summary>
     private bool CanLaunchSelected() => SelectedAccount is not null && !Busy && !_batchLaunching;
 
-    private bool CanJoinFavorite() => CanLaunchSelected() && SelectedFavorite is not null;
+    private bool CanJoinFavorite() => CanLaunchSelected() && SelectedFavorite is not null && SingleFavorite;
 
     [RelayCommand(CanExecute = nameof(CanJoinFavorite))]
     private async Task JoinFavoriteAsync(FavoriteGame? game)
@@ -764,6 +808,7 @@ public partial class MainViewModel : ObservableObject
         Recents.Clear();
         foreach (var r in _svc.Settings.Current.Recents.OrderByDescending(r => r.LastPlayed))
             Recents.Add(r);
+        OnPropertyChanged(nameof(HasNoRecents));
     }
 
     private async Task RecordRecentAsync(long placeId, Account acc)
@@ -784,7 +829,7 @@ public partial class MainViewModel : ObservableObject
         OnUi(ReloadRecents);
     }
 
-    private bool CanJoinRecent() => CanLaunchSelected() && SelectedRecent is not null;
+    private bool CanJoinRecent() => CanLaunchSelected() && SelectedRecent is not null && SingleRecent;
 
     [RelayCommand(CanExecute = nameof(CanJoinRecent))]
     private async Task JoinRecentAsync(RecentGame? game)
@@ -810,6 +855,25 @@ public partial class MainViewModel : ObservableObject
         _svc.Settings.Save();
         ReloadFavorites();
         Status = $"Favorited *{game.Name}*.";
+    }
+
+    private bool CanRemoveRecent() => SelectedRecent is not null || SelectedRecents.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(CanRemoveRecent))]
+    private void RemoveRecent()
+    {
+        var picked = SelectedRecents.Count > 0
+            ? SelectedRecents.ToList()
+            : SelectedRecent is { } s ? new List<RecentGame> { s } : new();
+        if (picked.Count == 0) return;
+
+        var ids = picked.Select(r => r.PlaceId).ToHashSet();
+        _svc.Settings.Current.Recents.RemoveAll(r => ids.Contains(r.PlaceId));
+        _svc.Settings.Save();
+        ReloadRecents();
+        Status = picked.Count == 1
+            ? $"Removed *{picked[0].Name}* from recents."
+            : $"Removed {picked.Count} games from recents.";
     }
 
     [RelayCommand]

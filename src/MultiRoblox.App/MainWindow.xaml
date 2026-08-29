@@ -542,6 +542,7 @@
                         </StackPanel>
                         <Grid>
                         <ListBox ItemsSource="{Binding Favorites}" SelectedItem="{Binding SelectedFavorite}"
+                                 SelectionMode="Extended" SelectionChanged="Favorites_SelectionChanged"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                  PreviewMouseLeftButtonDown="Favorite_PreviewMouseDown">
                             <ListBox.ItemTemplate>
@@ -570,14 +571,21 @@
                     <!-- Recents -->
                     <DockPanel Margin="0,12,0,0" Height="160"
                                Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Recents}">
-                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinRecentCommand}"/>
-                            <Button Content="★ Favorite" Margin="8,0,0,0" Style="{StaticResource GoldButton}"
-                                    Command="{Binding FavoriteRecentCommand}" ToolTip="Save this game to your favorites"/>
-                            <Button Content="{Binding RecentQuickJoinText}" Margin="8,0,0,0" Command="{Binding SetQuickJoinFromRecentCommand}"/>
-                            <Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding ClearRecentsCommand}"/>
-                        </StackPanel>
+                        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                            <Button DockPanel.Dock="Right" Content="Clear All Recents" Style="{StaticResource DangerButton}"
+                                    Command="{Binding ClearRecentsCommand}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinRecentCommand}"/>
+                                <Button Content="★ Favorite" Margin="8,0,0,0" Style="{StaticResource GoldButton}"
+                                        Command="{Binding FavoriteRecentCommand}" ToolTip="Save this game to your favorites"/>
+                                <Button Content="{Binding RecentQuickJoinText}" Margin="8,0,0,0" Command="{Binding SetQuickJoinFromRecentCommand}"/>
+                                <Button Content="Remove" Margin="8,0,0,0" Style="{StaticResource DangerButton}"
+                                        Command="{Binding RemoveRecentCommand}" ToolTip="Remove the selected game(s) from Recents"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <Grid>
                         <ListBox ItemsSource="{Binding Recents}" SelectedItem="{Binding SelectedRecent}"
+                                 SelectionMode="Extended" SelectionChanged="Recents_SelectionChanged"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                  Grid.IsSharedSizeScope="True"
                                  PreviewMouseLeftButtonDown="Recent_PreviewMouseDown">
@@ -606,6 +614,12 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
+                        <TextBlock Margin="16" TextWrapping="Wrap" TextAlignment="Center"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                                   Foreground="{DynamicResource SubtleText}"
+                                   Visibility="{Binding HasNoRecents, Converter={StaticResource BoolVis}}"
+                                   Text="No recent games yet. Games you launch through MultiRoblox show up here."/>
+                        </Grid>
                     </DockPanel>
 
                     <!-- Player finder -->

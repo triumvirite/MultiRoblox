@@ -127,6 +127,12 @@ public partial class MainWindow : Window
     private void AccountList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         Vm.SetSelectedAccounts(AccountList.SelectedItems.OfType<AccountItemViewModel>());
 
+    private void Favorites_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        Vm.SetSelectedFavorites(((ListBox)sender).SelectedItems.OfType<FavoriteGame>());
+
+    private void Recents_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        Vm.SetSelectedRecents(((ListBox)sender).SelectedItems.OfType<RecentGame>());
+
     // Toggle the update dropdown on the button; a StaysOpen=False popup would otherwise be dismissed
     // on mouse-down and re-opened by the click, so we track the last close.
     private DateTime _updatePopupClosedAt;
