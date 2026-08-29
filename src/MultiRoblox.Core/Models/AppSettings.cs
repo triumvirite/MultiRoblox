@@ -57,4 +57,7 @@ public sealed class AppSettings
 
     /// <summary>Width of the account sidebar column (draggable splitter). 0 = use the default.</summary>
     public double SidebarWidth { get; set; }
+
+    /// <summary>Double-clicking a selected account launches it into the Quick Join game.</summary>
+    public bool DoubleClickToQuickJoin { get; set; } = true;
 }

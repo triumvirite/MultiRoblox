@@ -10,12 +10,15 @@ namespace MultiRoblox.App.Views;
 public partial class SettingsWindow : Window
 {
     private readonly AppServices _svc;
+    private readonly string _originalTheme;
+    private bool _saved;
 
     public SettingsWindow(AppServices svc)
     {
         _svc = svc;
         InitializeComponent();
         DataPathText.Text = AppPaths.Root;
+        _originalTheme = svc.Settings.Current.ThemeName;
 
         var s = svc.Settings.Current;
         MultiInstance.IsChecked = s.AllowMultipleInstances;
@@ -31,8 +34,31 @@ public partial class SettingsWindow : Window
         FpsTarget.Text = s.FpsUnlockerTarget.ToString();
         FpsRow.IsEnabled = s.FpsUnlockerEnabled;
 
+        DoubleClickQJ.IsChecked = s.DoubleClickToQuickJoin;
+
         foreach (var t in ThemeManager.AvailableThemes()) ThemeBox.Items.Add(t);
         ThemeBox.SelectedItem = s.ThemeName;
+        ThemeBox.SelectionChanged += Theme_Changed;   // after the initial SelectedItem set
+    }
+
+    // Live preview: switching the theme picker recolours the app immediately (Cancel restores it).
+    private void Theme_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (ThemeBox.SelectedItem is string t)
+        {
+            ThemeManager.Apply(t);
+            TitleBarTheme.ApplyToOpenWindows();
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (!_saved && ThemeBox.SelectedItem as string != _originalTheme)
+        {
+            ThemeManager.Apply(_originalTheme);
+            TitleBarTheme.ApplyToOpenWindows();
+        }
+        base.OnClosed(e);
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
@@ -48,8 +74,13 @@ public partial class SettingsWindow : Window
         s.WebApiKey = ApiKey.Text.Trim();
         s.FpsUnlockerEnabled = FpsEnabled.IsChecked == true;
         s.FpsUnlockerTarget = int.TryParse(FpsTarget.Text, out var f) ? Math.Max(0, f) : 0;
+        s.DoubleClickToQuickJoin = DoubleClickQJ.IsChecked == true;
         s.ThemeName = ThemeBox.SelectedItem as string ?? "Dark";
+        _saved = true;
         _svc.Settings.Save();
+
+        ThemeManager.Apply(s.ThemeName);       // already live via Theme_Changed; harmless to re-assert
+        TitleBarTheme.ApplyToOpenWindows();
 
         // Apply the FPS cap now so it takes effect on the next launch even without one first.
         var exe = RobloxPlayerLocator.Resolve(s.RobloxPlayerPathOverride);
@@ -74,6 +105,12 @@ public partial class SettingsWindow : Window
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void Repo_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true }); } catch { }
+        e.Handled = true;
+    }
 
     private void FpsEnabled_Changed(object sender, RoutedEventArgs e) =>
         FpsRow.IsEnabled = FpsEnabled.IsChecked == true;

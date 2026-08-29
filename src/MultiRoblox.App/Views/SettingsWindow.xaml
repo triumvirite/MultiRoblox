@@ -5,14 +5,30 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" Icon="/Assets/app.ico">
     <DockPanel Margin="16">
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-            <Button Content="Save" Style="{StaticResource AccentButton}" Click="Save_Click" Width="90"/>
-            <Button Content="Cancel" Margin="8,0,0,0" Click="Cancel_Click" Width="90"/>
-        </StackPanel>
+        <Grid DockPanel.Dock="Bottom" Margin="0,14,0,0">
+            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left">
+                <Hyperlink NavigateUri="https://github.com/triumvirite/MultiRoblox"
+                           RequestNavigate="Repo_RequestNavigate"
+                           Foreground="{DynamicResource LinkText}" TextDecorations="Underline">
+                    GitHub repository
+                </Hyperlink>
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Save" Style="{StaticResource AccentButton}" Click="Save_Click" Width="90"/>
+                <Button Content="Cancel" Margin="8,0,0,0" Click="Cancel_Click" Width="90"/>
+            </StackPanel>
+        </Grid>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="0,0,10,0">
-            <TextBlock Text="Multi-instance" Style="{StaticResource H1}"/>
+            <TextBlock Text="Appearance" Style="{StaticResource H1}"/>
+            <ComboBox x:Name="ThemeBox" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+
+            <TextBlock Text="Accounts" Style="{StaticResource H1}" Margin="0,20,0,0"/>
+            <CheckBox x:Name="DoubleClickQJ" Margin="0,8,0,0"
+                      Content="Double-click a selected account to Quick Join on it"/>
+
+            <TextBlock Text="Multi-instance" Style="{StaticResource H1}" Margin="0,20,0,0"/>
             <CheckBox x:Name="MultiInstance" Content="Allow multiple Roblox clients at once" Margin="0,8,0,0"/>
             <TextBlock Text="Held via the Roblox singleton objects while the app runs." Style="{StaticResource Subtle}" Margin="0,2,0,0"/>
 
@@ -47,9 +63,6 @@
             </StackPanel>
             <TextBlock Text="Off leaves Roblox's own cap untouched. Applied to ClientAppSettings.json on launch."
                        Style="{StaticResource Subtle}" Margin="0,2,0,0"/>
-
-            <TextBlock Text="Appearance" Style="{StaticResource H1}" Margin="0,20,0,0"/>
-            <ComboBox x:Name="ThemeBox" Width="200" HorizontalAlignment="Left" Margin="0,8,0,0"/>
 
             <TextBlock Text="Data" Style="{StaticResource H1}" Margin="0,20,0,0"/>
             <TextBlock x:Name="DataPathText" Style="{StaticResource Subtle}" Margin="0,8,0,0" TextWrapping="Wrap"/>

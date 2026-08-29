@@ -126,6 +126,13 @@ public partial class MainViewModel : ObservableObject
     // --- update panel --------------------------------------------
     [ObservableProperty] private UpdateStatus _updateState = UpdateStatus.Checking;
     [ObservableProperty] private string _updateTooltip = "Checking for updates…";
+
+    /// <summary>The update button only shows when there's something to act on — an update is
+    /// available/critical, or one is installing / just failed.</summary>
+    public bool UpdateButtonVisible => UpdateState is UpdateStatus.Available or UpdateStatus.Critical
+        or UpdateStatus.Installing or UpdateStatus.Failed;
+
+    partial void OnUpdateStateChanged(UpdateStatus value) => OnPropertyChanged(nameof(UpdateButtonVisible));
     [ObservableProperty] private string _updateButtonText = "Check for update";
     [ObservableProperty] private bool _updatePopupOpen;
     [ObservableProperty] private string _updateHeadline = "Checking…";
@@ -1252,6 +1259,7 @@ public partial class MainViewModel : ObservableObject
         var win = new SettingsWindow(_svc) { Owner = Application.Current.MainWindow };
         win.ShowDialog();
         ThemeManager.Apply(_svc.Settings.Current.ThemeName);
+        TitleBarTheme.ApplyToOpenWindows();   // recolour the OS caption to match the (maybe new) theme
         UpdateThemeToggle();
     }
 

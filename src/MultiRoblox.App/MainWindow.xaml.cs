@@ -283,7 +283,8 @@ public partial class MainWindow : Window
         if (DoubleClickTarget(AccountList, e) is AccountItemViewModel acct)
         {
             if (acct.NeedsReLogin) Vm.ReLogin(acct);
-            else if (Vm.HasQuickJoin) _ = Vm.QuickJoinAccountAsync(acct);
+            else if (Vm.HasQuickJoin && App.Services.Settings.Current.DoubleClickToQuickJoin)
+                _ = Vm.QuickJoinAccountAsync(acct);
         }
     }
 
