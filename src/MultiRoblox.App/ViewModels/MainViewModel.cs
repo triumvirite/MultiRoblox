@@ -1043,7 +1043,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasSelection))]
     private void OpenUtilities()
     {
-        var win = new UtilitiesWindow(_svc, SelectedAccount!.Model, this) { Owner = Application.Current.MainWindow };
+        var win = new UtilitiesWindow(_svc, TargetAccounts(), this) { Owner = Application.Current.MainWindow };
         win.Show();
     }
 
@@ -1111,7 +1111,50 @@ public partial class MainViewModel : ObservableObject
 
     // --- update -----------------------------------------
 
-    public enum UpdateStatus { Checking, UpToDate, Available, Unknown }
+    public enum UpdateStatus { Checking, UpToDate, Available, Unknown, Installing, Failed, Critical }
+
+    /// <summary>True when the running build is older than a release flagged as fixing a critical bug.</summary>
+    [ObservableProperty] private bool _updateIsCritical;
+    [ObservableProperty] private string _updateCriticalText = "";
+
+    /// <summary>The update button is disabled during an install and for a short cooldown after a failure.</summary>
+    [ObservableProperty] private bool _updateButtonEnabled = true;
+
+    /// <summary>Show the failure state, then re-enable after a 3s cooldown.</summary>
+    private async Task EnterUpdateFailedStateAsync(string reason)
+    {
+        OnUi(() =>
+        {
+            UpdateInstalling = false;
+            UpdateState = UpdateStatus.Failed;
+            UpdateButtonText = "Update failed! Retry shortly";
+            UpdateTooltip = "Update failed: " + reason;
+            UpdateHeadline = "Update failed";
+            UpdateButtonEnabled = false;
+        });
+
+        await Task.Delay(3000);
+
+        OnUi(() =>
+        {
+            UpdateButtonEnabled = true;
+            if (_cachedUpdate is { CriticalOutOfDate: true })
+            {
+                UpdateState = UpdateStatus.Critical;
+                UpdateButtonText = "Critical update available";
+            }
+            else if (_cachedUpdate is { UpdateAvailable: true })
+            {
+                UpdateState = UpdateStatus.Available;
+                UpdateButtonText = "Update available";
+            }
+            else
+            {
+                UpdateState = UpdateStatus.UpToDate;
+                UpdateButtonText = "Check for update";
+            }
+        });
+    }
 
     /// <summary>Open the update dropdown and (re)check. The toggle/close is handled in the view so a
     /// click on the button while it's open dismisses it instead of re-opening.</summary>
@@ -1133,6 +1176,9 @@ public partial class MainViewModel : ObservableObject
         try
         {
             UpdateInstalling = true;
+            UpdateButtonEnabled = false;
+            UpdateState = UpdateStatus.Installing;
+            UpdateButtonText = "Updating…";
             UpdateHeadline = "Downloading…";
             var progress = new Progress<double>(p => OnUi(() =>
             {
@@ -1146,8 +1192,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            UpdateInstalling = false;
-            UpdateHeadline = "Update failed: " + ex.Message;
+            await EnterUpdateFailedStateAsync(ex.Message);
         }
     }
 
@@ -1159,7 +1204,18 @@ public partial class MainViewModel : ObservableObject
             _cachedUpdate = info;
             OnUi(() =>
             {
-                if (info.UpdateAvailable)
+                UpdateIsCritical = info.CriticalOutOfDate;
+                UpdateCriticalText = info.CriticalOutOfDate
+                    ? $"Your version (v{info.Current.ToString(3)}) has a known serious bug fixed in {info.CriticalTag}. Updating now is strongly recommended."
+                    : "";
+
+                if (info.CriticalOutOfDate)
+                {
+                    UpdateState = UpdateStatus.Critical;
+                    UpdateButtonText = "Critical update available";
+                    UpdateTooltip = UpdateCriticalText;
+                }
+                else if (info.UpdateAvailable)
                 {
                     UpdateState = UpdateStatus.Available;
                     UpdateButtonText = "Update available";
@@ -1191,7 +1247,12 @@ public partial class MainViewModel : ObservableObject
         UpdateInstalledText = $"v{info.Current.ToString(3)}";
         UpdateLatestText = info.LatestTag;
         UpdateCanInstall = info.UpdateAvailable;
-        UpdateHeadline = info.UpdateAvailable ? "Update available"
+        UpdateIsCritical = info.CriticalOutOfDate;
+        UpdateCriticalText = info.CriticalOutOfDate
+            ? $"Your version has a known serious bug fixed in {info.CriticalTag}. Updating now is strongly recommended."
+            : "";
+        UpdateHeadline = info.CriticalOutOfDate ? "⚠ Critical update strongly recommended"
+            : info.UpdateAvailable ? "Update available"
             : info.Latest > info.Current ? "Update available (no exe yet — try shortly)"
             : "You're up to date";
     }

@@ -9,7 +9,8 @@ namespace MultiRoblox.App.ViewModels;
 public partial class UtilitiesViewModel : ObservableObject
 {
     private readonly AppServices _svc;
-    private readonly Account _account;
+    private readonly Account _account;                       // primary account (overview / block)
+    private readonly IReadOnlyList<Account> _accounts;       // every selected account (group actions)
     private readonly AccountUtilities _util;
     private readonly GamesClient _games;
     private readonly MainViewModel _main;
@@ -23,6 +24,14 @@ public partial class UtilitiesViewModel : ObservableObject
 
     // group
     [ObservableProperty] private string _groupIdInput = "";
+    public string GroupScopeText => _accounts.Count > 1
+        ? $"Groups — applies to all {_accounts.Count} selected accounts"
+        : "Groups";
+    public ObservableCollection<string> GroupResults { get; } = new();
+
+    public string WindowTitle => _accounts.Count > 1
+        ? $"Account utilities — {_account.Username} (+{_accounts.Count - 1} more)"
+        : $"Account utilities — {_account.Username}";
 
     // block
     [ObservableProperty] private string _blockUserInput = "";
@@ -31,12 +40,13 @@ public partial class UtilitiesViewModel : ObservableObject
     [ObservableProperty] private string _finderInput = "";
     public ObservableCollection<string> FinderResults { get; } = new();
 
-    public UtilitiesViewModel(AppServices svc, Account account, MainViewModel main)
+    public UtilitiesViewModel(AppServices svc, IReadOnlyList<Account> accounts, MainViewModel main)
     {
         _svc = svc;
-        _account = account;
+        _accounts = accounts.Count > 0 ? accounts : throw new ArgumentException("no accounts", nameof(accounts));
+        _account = _accounts[0];
         _main = main;
-        var client = svc.Pool.Get(account);
+        var client = svc.Pool.Get(_account);
         _util = new AccountUtilities(client);
         _games = new GamesClient(client);
     }
@@ -73,20 +83,60 @@ public partial class UtilitiesViewModel : ObservableObject
         catch (Exception ex) { Status = "Failed: " + ex.Message; }
     }
 
-    [RelayCommand]
-    private async Task JoinGroupAsync()
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private Task JoinGroupAsync() => GroupActionAsync(join: true);
+
+    [RelayCommand(CanExecute = nameof(NotBusy))]
+    private Task LeaveGroupAsync() => GroupActionAsync(join: false);
+
+    private bool NotBusy() => !Busy;
+
+    partial void OnBusyChanged(bool value)
     {
-        if (!long.TryParse(GroupIdInput.Trim(), out long id)) { Status = "Bad group id."; return; }
-        try { await _util.JoinGroupAsync(id); Status = $"Requested to join group {id}."; }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; }
+        JoinGroupCommand.NotifyCanExecuteChanged();
+        LeaveGroupCommand.NotifyCanExecuteChanged();
     }
 
-    [RelayCommand]
-    private async Task LeaveGroupAsync()
+    private async Task GroupActionAsync(bool join)
     {
-        if (!long.TryParse(GroupIdInput.Trim(), out long id)) { Status = "Bad group id."; return; }
-        try { await _util.LeaveGroupAsync(id, _account.UserId); Status = $"Left group {id}."; }
-        catch (Exception ex) { Status = "Failed: " + ex.Message; }
+        if (!long.TryParse(GroupIdInput.Trim(), out long id) || id <= 0) { Status = "Enter a valid group id."; return; }
+
+        GroupResults.Clear();
+        int ok = 0, fail = 0;
+        try
+        {
+            Busy = true;
+            Status = join ? $"Joining group {id}…" : $"Leaving group {id}…";
+            foreach (var acc in _accounts)
+            {
+                var util = new AccountUtilities(_svc.Pool.Get(acc));
+                try
+                {
+                    if (join)
+                    {
+                        await util.JoinGroupAsync(id);
+                        // approval-required groups accept the POST (200) but only create a pending request
+                        bool member = await util.IsGroupMemberAsync(acc.UserId, id);
+                        GroupResults.Add(member
+                            ? $"✓ {acc.Username} — joined"
+                            : $"✓ {acc.Username} — join request sent (awaiting approval)");
+                    }
+                    else
+                    {
+                        await util.LeaveGroupAsync(id, acc.UserId);
+                        GroupResults.Add($"✓ {acc.Username} — left");
+                    }
+                    ok++;
+                }
+                catch (Exception ex)
+                {
+                    fail++;
+                    GroupResults.Add($"✗ {acc.Username} — {ex.Message}");
+                }
+            }
+            Status = $"{(join ? "Join" : "Leave")} group {id}: {ok} ok" + (fail > 0 ? $", {fail} failed" : "") + ".";
+        }
+        finally { Busy = false; }
     }
 
     [RelayCommand]

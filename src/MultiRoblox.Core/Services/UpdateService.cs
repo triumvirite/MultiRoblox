@@ -10,9 +10,15 @@ public sealed record UpdateInfo(
     string LatestTag,
     string? ExeDownloadUrl,
     string ReleaseUrl,
-    string Notes)
+    string Notes,
+    Version? CriticalSince = null,
+    string? CriticalTag = null)
 {
     public bool UpdateAvailable => Latest > Current && ExeDownloadUrl is not null;
+
+    /// <summary>The running build is older than the version named in <c>critical-version.txt</c> —
+    /// a build with a known serious bug — so the user should be strongly warned to update.</summary>
+    public bool CriticalOutOfDate => CriticalSince is not null && Current < CriticalSince;
 }
 
 /// <summary>
@@ -71,7 +77,32 @@ public sealed class UpdateService
             }
         }
 
-        return new UpdateInfo(CurrentVersion, ParseTag(tag), tag, exeUrl, releaseUrl, notes);
+        // The lowest still-safe version lives in a one-line file on the default branch — clients below
+        // it are on a build with a known serious bug. Best-effort: a fetch failure just means "no warning".
+        var (criticalSince, criticalTag) = await FetchCriticalVersionAsync(ct);
+
+        return new UpdateInfo(CurrentVersion, ParseTag(tag), tag, exeUrl, releaseUrl, notes, criticalSince, criticalTag);
+    }
+
+    /// <summary>Reads <c>critical-version.txt</c> from the default branch: a single version like <c>1.6.3</c>
+    /// (optionally prefixed <c>v</c>). Anything else — missing file, blank, unparseable — means "no critical fix".</summary>
+    private async Task<(Version?, string?)> FetchCriticalVersionAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var res = await _http.GetAsync(
+                $"https://raw.githubusercontent.com/{Owner}/{Repo}/main/critical-version.txt", ct);
+            if (!res.IsSuccessStatusCode) return (null, null);
+            string raw = await res.Content.ReadAsStringAsync(ct);
+            string text = raw.Split('\n', 2)[0].Trim().TrimStart('v', 'V');   // first line, rest can be a comment
+            if (Version.TryParse(text, out var v))
+            {
+                var n = Normalize(v);
+                return (n, $"v{n.ToString(3)}");
+            }
+        }
+        catch { }
+        return (null, null);
     }
 
     /// <summary>

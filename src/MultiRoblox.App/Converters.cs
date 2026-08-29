@@ -123,6 +123,9 @@ public sealed class UpdateStatusToBrushConverter : IValueConverter
             "UpToDate" => app.TryFindResource("Ok") ?? Brushes.Green,
             "Available" => app.TryFindResource("Warn") ?? Brushes.Orange,
             "Unknown" => app.TryFindResource("Danger") ?? Brushes.Red,
+            "Failed" => app.TryFindResource("Danger") ?? Brushes.Red,
+            "Critical" => app.TryFindResource("Danger") ?? Brushes.Red,
+            "Installing" => app.TryFindResource("Info") ?? Brushes.DodgerBlue,
             _ => app.TryFindResource("SubtleText") ?? Brushes.Gray,
         };
     }

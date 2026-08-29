@@ -6,9 +6,9 @@ namespace MultiRoblox.App.Views;
 
 public partial class UtilitiesWindow : Window
 {
-    public UtilitiesWindow(AppServices svc, Account account, MainViewModel main)
+    public UtilitiesWindow(AppServices svc, IReadOnlyList<Account> accounts, MainViewModel main)
     {
-        DataContext = new UtilitiesViewModel(svc, account, main);
+        DataContext = new UtilitiesViewModel(svc, accounts, main);
         InitializeComponent();
         Loaded += (_, _) => ((UtilitiesViewModel)DataContext).LoadCommand.Execute(null);
     }

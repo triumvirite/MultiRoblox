@@ -71,17 +71,86 @@ public sealed class AccountUtilities
     public async Task UnblockUserAsync(long userId, CancellationToken ct = default) =>
         await PostAsync($"https://accountsettings.roblox.com/v1/users/{userId}/unblock", new { }, ct);
 
-    public async Task JoinGroupAsync(long groupId, CancellationToken ct = default) =>
-        await PostAsync($"https://groups.roblox.com/v1/groups/{groupId}/users", new { }, ct);
+    public async Task JoinGroupAsync(long groupId, CancellationToken ct = default)
+    {
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            string csrf = await _client.GetCsrfTokenAsync(force: attempt > 0, ct);
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"https://groups.roblox.com/v1/groups/{groupId}/users") { Content = JsonContent.Create(new { }) };
+            AddAuth(req, csrf);
+            using var res = await _http.SendAsync(req, ct);
 
+            bool challenged = res.Headers.Contains("rblx-challenge-id");
+            if ((int)res.StatusCode == 403 && attempt == 0 && !challenged) continue;   // stale CSRF — retry once
+            if (res.IsSuccessStatusCode) return;
+
+            if (challenged)
+                throw new InvalidOperationException("Roblox is asking for a captcha to join this group — can't be done automatically.");
+
+            string body = await res.Content.ReadAsStringAsync(ct);
+            throw new InvalidOperationException(ExtractError(body) ?? $"HTTP {(int)res.StatusCode}");
+        }
+    }
+
+    /// <summary>True if the user is a full member of the group (not just a pending join request).</summary>
+    public async Task<bool> IsGroupMemberAsync(long userId, long groupId, CancellationToken ct = default)
+    {
+        try
+        {
+            var el = await GetJsonAsync($"https://groups.roblox.com/v1/users/{userId}/groups/roles", ct);
+            if (el.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array)
+                foreach (var g in data.EnumerateArray())
+                    if (g.TryGetProperty("group", out var grp) && grp.TryGetProperty("id", out var gid)
+                        && gid.GetInt64() == groupId)
+                        return true;
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>Leave a group. If the user isn't a member but has a pending join request, cancel that instead.</summary>
     public async Task LeaveGroupAsync(long groupId, long userId, CancellationToken ct = default)
     {
-        string csrf = await _client.GetCsrfTokenAsync(ct: ct);
-        using var req = new HttpRequestMessage(HttpMethod.Delete,
-            $"https://groups.roblox.com/v1/groups/{groupId}/users/{userId}");
-        AddAuth(req, csrf);
-        using var res = await _http.SendAsync(req, ct);
-        res.EnsureSuccessStatusCode();
+        var (statusMember, memberBody) = await DeleteAsync(
+            $"https://groups.roblox.com/v1/groups/{groupId}/users/{userId}", ct);
+        if (statusMember is >= 200 and < 300) return;
+
+        // not a member — maybe there's an outstanding join request; withdrawing it uses a different route
+        var (statusReq, reqBody) = await DeleteAsync(
+            $"https://groups.roblox.com/v1/groups/{groupId}/join-requests/users/{userId}", ct);
+        if (statusReq is >= 200 and < 300) return;
+
+        throw new InvalidOperationException(
+            ExtractError(memberBody) ?? ExtractError(reqBody) ?? $"HTTP {statusMember}");
+    }
+
+    private async Task<(int Status, string Body)> DeleteAsync(string url, CancellationToken ct)
+    {
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            string csrf = await _client.GetCsrfTokenAsync(force: attempt > 0, ct);
+            using var req = new HttpRequestMessage(HttpMethod.Delete, url);
+            AddAuth(req, csrf);
+            using var res = await _http.SendAsync(req, ct);
+            if ((int)res.StatusCode == 403 && attempt == 0) continue;
+            return ((int)res.StatusCode, await res.Content.ReadAsStringAsync(ct));
+        }
+        return (0, "");
+    }
+
+    /// <summary>Pull the first message out of a Roblox <c>{"errors":[{"message":"…"}]}</c> body.</summary>
+    private static string? ExtractError(string body)
+    {
+        try
+        {
+            var el = JsonSerializer.Deserialize<JsonElement>(body);
+            if (el.TryGetProperty("errors", out var errs) && errs.ValueKind == JsonValueKind.Array
+                && errs.GetArrayLength() > 0 && errs[0].TryGetProperty("message", out var m))
+                return m.GetString();
+        }
+        catch { }
+        return null;
     }
 
     public Task LogoutOtherSessionsAsync(CancellationToken ct = default) => _client.LogoutOtherSessionsAsync(ct);

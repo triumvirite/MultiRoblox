@@ -277,7 +277,8 @@
                     </Grid.ColumnDefinitions>
                     <Grid>
                         <Button x:Name="UpdateButton" Click="UpdateButton_Click" ToolTip="{Binding UpdateTooltip}"
-                                AutomationProperties.Name="UpdateToggle" Padding="10,3">
+                                AutomationProperties.Name="UpdateToggle" Padding="10,3"
+                                IsEnabled="{Binding UpdateButtonEnabled}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
                                 <Ellipse Width="8" Height="8" Margin="6,0,0,0" VerticalAlignment="Center"
@@ -294,7 +295,12 @@
                                     TextElement.Foreground="{DynamicResource Text}">
                                 <StackPanel>
                                     <TextBlock Text="{Binding UpdateHeadline}" FontSize="16" FontWeight="SemiBold"
-                                               Foreground="{DynamicResource Text}"/>
+                                               Foreground="{DynamicResource Text}" TextWrapping="Wrap"/>
+                                    <Border Background="{DynamicResource Danger}" CornerRadius="6" Padding="10,7" Margin="0,10,0,0"
+                                            Visibility="{Binding UpdateIsCritical, Converter={StaticResource BoolVis}}">
+                                        <TextBlock Text="{Binding UpdateCriticalText}" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource OnDanger}" FontSize="12"/>
+                                    </Border>
                                     <Grid Margin="0,10,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
