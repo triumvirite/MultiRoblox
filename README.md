@@ -1,11 +1,9 @@
 # MultiRoblox
 
-A self-owned Roblox account manager for Windows — add accounts, launch any of them into a game,
+A Roblox account manager for Windows — add accounts, launch any of them into a game,
 run several game clients at once, and actually close them when you're done.
 
-Built because the popular closed alternative is archived, unauditable, and holds every cookie you own.
-This one is source-visible, stores nothing off your machine, and talks only to official
-`*.roblox.com` endpoints.
+This stores nothing off your machine, and talks only to official `*.roblox.com` endpoints.
 
 ---
 
@@ -27,13 +25,6 @@ This one is source-visible, stores nothing off your machine, and talks only to o
      (~180 MB, .NET bundled in — copy it anywhere). Or just `dotnet run --project src/MultiRoblox.App`
      to run without building an exe.
 
-   **Releases are automated.** GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
-   builds + tests on every push to `main`, then publishes `v<major>.<minor>.<patch>` with the fresh
-   `MultiRoblox.exe` + zip attached, marked *Latest*.
-
-   - `major.minor` come from `<Version>` in [`MultiRoblox.App.csproj`](src/MultiRoblox.App/MultiRoblox.App.csproj).
-   - `patch` auto-increments every push within that minor line, so each push is a strictly newer
-     version the in-app updater will offer. Bump `<Version>`'s minor (`1.1` → `1.2`) to start a new line.
 2. Launch it. Click **Add** (bottom-left), sign in through the built-in login window, and the account
    appears in the sidebar.
 3. Click an account → type a **Place ID** → **Join**.
