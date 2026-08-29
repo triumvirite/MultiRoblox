@@ -346,6 +346,21 @@ public partial class MainWindow : Window
                 Header = one.NeedsReLogin ? "Re-login (needed)" : "Re-login",
                 Command = new SimpleCommand(() => Vm.ReLogin(one)),
             });
+            menu.Items.Add(new MenuItem
+            {
+                Header = string.IsNullOrWhiteSpace(one.Alias) ? "Set alias…" : "Change alias…",
+                Command = new SimpleCommand(() =>
+                {
+                    var v = Services.Dialogs.Prompt("Alias", $"Alias for {one.Label}:", one.Alias);
+                    if (v is not null) one.Alias = v.Trim();
+                }),
+            });
+            if (!string.IsNullOrWhiteSpace(one.Alias))
+                menu.Items.Add(new MenuItem
+                {
+                    Header = "Clear alias",
+                    Command = new SimpleCommand(() => one.Alias = ""),
+                });
             menu.Items.Add(new Separator());
         }
 

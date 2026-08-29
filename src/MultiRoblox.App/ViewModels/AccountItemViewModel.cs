@@ -55,12 +55,19 @@ public partial class AccountItemViewModel : ObservableObject
         _health = AccountHealth.Unknown;
     }
 
+    /// <summary>Account-list row label: "username - alias" when an alias is set, else just the username.
+    /// Only the account list uses this; everywhere else shows the bare username.</summary>
+    public string ListLabel => string.IsNullOrWhiteSpace(Alias) ? Label : $"{Label} - {Alias}";
+
     partial void OnAliasChanged(string value)
     {
+        OnPropertyChanged(nameof(ListLabel));
         if (Model.Alias == value) return;
         Model.Alias = value;
         Persist?.Invoke();
     }
+
+    partial void OnLabelChanged(string value) => OnPropertyChanged(nameof(ListLabel));
 
     partial void OnNoteChanged(string value)
     {
@@ -124,6 +131,7 @@ public partial class AccountItemViewModel : ObservableObject
         Label = Model.DisplayLabel;
         Alias = Model.Alias;
         Note = Model.Note;
+        OnPropertyChanged(nameof(ListLabel));
         OnPropertyChanged(nameof(Categories));
         OnPropertyChanged(nameof(CategoriesText));
         NotifyStatus();
