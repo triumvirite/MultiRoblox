@@ -89,14 +89,56 @@
                     </ComboBox>
                     <TextBox Margin="0,8,0,0" Tag="Search"
                              Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Margin="2,8,0,0" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleText}">
+                        <Run Text="Quick Join: "/><Run Text="{Binding QuickJoinValueText, Mode=OneWay}">
+                            <Run.Style>
+                                <Style TargetType="Run">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasQuickJoin}" Value="False">
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Run.Style>
+                        </Run>
+                    </TextBlock>
+                    <Grid Margin="0,5,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="3*"/>
+                            <ColumnDefinition Width="1*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="{Binding QuickJoinButtonText}"
+                                Command="{Binding QuickJoinCommand}" Margin="0,0,3,0"
+                                ToolTip="Launch the selected account into your Quick Join game">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource AccentButton}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AllTargetsInQuickJoinGame}" Value="True">
+                                            <Setter Property="FontStyle" Value="Italic"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Grid.Column="1" Content="Clear" Style="{StaticResource DangerButton}" Padding="4,0"
+                                Command="{Binding ClearQuickJoinCommand}" Margin="3,0,0,0"
+                                ToolTip="Clear Quick Join"/>
+                    </Grid>
                 </StackPanel>
 
-                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="10">
-                    <Button Content="Add" Style="{StaticResource AccentButton}" Command="{Binding AddAccountCommand}" Width="66"/>
-                    <Button Content="Import" Command="{Binding ImportAccountsCommand}" Margin="6,0,0,0" Width="66"
+                <Grid DockPanel.Dock="Bottom" Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Add" Style="{StaticResource AccentButton}"
+                            Command="{Binding AddAccountCommand}" Margin="0,0,3,0"/>
+                    <Button Grid.Column="1" Content="Import" Command="{Binding ImportAccountsCommand}" Margin="3,0,3,0"
                             ToolTip="Import accounts from Roblox Account Manager's AccountData.json"/>
-                    <Button Content="Remove" Style="{StaticResource DangerButton}" Command="{Binding RemoveAccountCommand}" Margin="6,0,0,0" Width="66"/>
-                </StackPanel>
+                    <Button Grid.Column="2" Content="Remove" Style="{StaticResource DangerButton}"
+                            Command="{Binding RemoveAccountCommand}" Margin="3,0,0,0"/>
+                </Grid>
 
                 <ListBox x:Name="AccountList" Margin="4" Background="Transparent" BorderThickness="0"
                          ItemsSource="{Binding AccountsView}"
@@ -355,12 +397,15 @@
                             <ColumnDefinition Width="2*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         <TextBox Grid.Column="0" Text="{Binding PlaceIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Place ID or game link"/>
                         <TextBox Grid.Column="1" Margin="8,0,0,0" Text="{Binding JobIdInput, UpdateSourceTrigger=PropertyChanged}" Tag="Job ID (optional)"/>
                         <Button Grid.Column="2" Margin="8,0,0,0" Content="★ Favorite" Style="{StaticResource GoldButton}"
                                 Command="{Binding AddFavoriteCommand}" ToolTip="Save this place to your favorites"/>
-                        <Button Grid.Column="3" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
+                        <Button Grid.Column="3" Margin="8,0,0,0" Content="{Binding ManualQuickJoinText}"
+                                Command="{Binding SetManualQuickJoinCommand}" ToolTip="Make this the Quick Join game"/>
+                        <Button Grid.Column="4" Margin="8,0,0,0" Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinCommand}"/>
                     </Grid>
 
                     <!-- resolved game name for the entered Place ID -->
@@ -373,6 +418,7 @@
                                Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Favorites}">
                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinFavoriteCommand}"/>
+                            <Button Content="{Binding FavoriteQuickJoinText}" Margin="8,0,0,0" Command="{Binding SetQuickJoinFromFavoriteCommand}"/>
                             <Button Content="Remove" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding RemoveFavoriteCommand}"/>
                         </StackPanel>
                         <ListBox ItemsSource="{Binding Favorites}" SelectedItem="{Binding SelectedFavorite}"
@@ -400,6 +446,7 @@
                                Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Recents}">
                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinRecentCommand}"/>
+                            <Button Content="{Binding RecentQuickJoinText}" Margin="8,0,0,0" Command="{Binding SetQuickJoinFromRecentCommand}"/>
                             <Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding ClearRecentsCommand}"/>
                         </StackPanel>
                         <ListBox ItemsSource="{Binding Recents}" SelectedItem="{Binding SelectedRecent}"

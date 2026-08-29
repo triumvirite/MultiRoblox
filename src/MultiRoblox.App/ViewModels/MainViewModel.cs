@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MultiRoblox.App.Services;
@@ -55,6 +56,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectionSummary));
         JoinCommand.NotifyCanExecuteChanged();
         AddFavoriteCommand.NotifyCanExecuteChanged();
+        NotifyQuickJoinState();
     }
 
     /// <summary>Accounts an action should target: every selected row, or the single primary one.</summary>
@@ -125,15 +127,26 @@ public partial class MainViewModel : ObservableObject
         // non-blocking: this event fires from the WinEvent-hook / poll threads
         _svc.Instances.InstanceChanged += (_, inst) =>
             Application.Current?.Dispatcher.BeginInvoke(() => SyncInstance(inst));
+        // Quick Join button (grayed / "Already in this game!") depends on which instances are running
+        Instances.CollectionChanged += (_, _) => NotifyQuickJoinState();
         _svc.Accounts.Changed += (_, _) => OnUi(() => { RebuildCategories(); ReloadAccounts(); });
 
         if (Enum.TryParse<JoinMode>(_svc.Settings.Current.JoinMode, out var savedMode))
             JoinModeValue = savedMode;
         _joinModeLoaded = true;
 
+        QuickJoinPlaceId = _svc.Settings.Current.QuickJoinPlaceId;
+        QuickJoinName = _svc.Settings.Current.QuickJoinName;
+
         UpdateThemeToggle();
         _ = CheckForUpdateSilentlyAsync();
+
+        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(15) };
+        _updateTimer.Tick += (_, _) => _ = CheckForUpdateSilentlyAsync();
+        _updateTimer.Start();
     }
+
+    private readonly DispatcherTimer _updateTimer;
 
     private bool _joinModeLoaded;
 
@@ -320,6 +333,8 @@ public partial class MainViewModel : ObservableObject
         }
         JoinCommand.NotifyCanExecuteChanged();
         AddFavoriteCommand.NotifyCanExecuteChanged();
+        SetManualQuickJoinCommand.NotifyCanExecuteChanged();
+        NotifyQuickJoinState();
         RemoveAccountCommand.NotifyCanExecuteChanged();
         RefreshAccountCommand.NotifyCanExecuteChanged();
         OpenUtilitiesCommand.NotifyCanExecuteChanged();
@@ -339,6 +354,8 @@ public partial class MainViewModel : ObservableObject
     {
         JoinCommand.NotifyCanExecuteChanged();
         AddFavoriteCommand.NotifyCanExecuteChanged();
+        SetManualQuickJoinCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(ManualQuickJoinText));
         _ = ResolveGameNameAsync(value);
     }
 
@@ -410,7 +427,148 @@ public partial class MainViewModel : ObservableObject
         {
             _batchLaunching = false;
             JoinCommand.NotifyCanExecuteChanged();
+            if (HasQuickJoin && join.PlaceId != QuickJoinPlaceId)
+                StartQuickJoinCooldown();
+            else
+                NotifyQuickJoinState();
         }
+    }
+
+    // brief gray-out on the Quick Join button right after launching some other game
+    private DateTime _quickJoinCooldownUntil;
+
+    private void StartQuickJoinCooldown()
+    {
+        _quickJoinCooldownUntil = DateTime.UtcNow.AddSeconds(5);
+        NotifyQuickJoinState();
+        _ = Task.Delay(5050).ContinueWith(_ => OnUi(NotifyQuickJoinState));
+    }
+
+    // --- quick join (one designated game, persisted) ----------
+
+    [ObservableProperty] private long _quickJoinPlaceId;
+    [ObservableProperty] private string _quickJoinName = "";
+
+    public bool HasQuickJoin => QuickJoinPlaceId != 0;
+
+    /// <summary>The game name (or "Place {id}"), or "None" — shown after "Quick Join: " on the button.</summary>
+    public string QuickJoinValueText => QuickJoinPlaceId == 0
+        ? "None"
+        : string.IsNullOrWhiteSpace(QuickJoinName) ? $"Place {QuickJoinPlaceId}" : QuickJoinName;
+
+    partial void OnQuickJoinPlaceIdChanged(long value)
+    {
+        OnPropertyChanged(nameof(QuickJoinValueText));
+        OnPropertyChanged(nameof(HasQuickJoin));
+        NotifyQuickJoinButtonTexts();
+        NotifyQuickJoinState();
+        ClearQuickJoinCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasQuickJoin))]
+    private void ClearQuickJoin() => SetQuickJoin(0, "");
+
+    // --- "Set / Remove as Quick Join" button text (toggles when the target is already the Quick Join)
+
+    private bool IsQuickJoin(long placeId) => placeId != 0 && placeId == QuickJoinPlaceId;
+
+    private long ManualPlaceId => GameLinkParser.TryParse(PlaceIdInput, out var l) ? l.PlaceId : 0;
+
+    public string ManualQuickJoinText => IsQuickJoin(ManualPlaceId) ? "Remove as Quick Join" : "Set as Quick Join";
+    public string FavoriteQuickJoinText => IsQuickJoin(SelectedFavorite?.PlaceId ?? 0) ? "Remove as Quick Join" : "Set as Quick Join";
+    public string RecentQuickJoinText => IsQuickJoin(SelectedRecent?.PlaceId ?? 0) ? "Remove as Quick Join" : "Set as Quick Join";
+
+    private void NotifyQuickJoinButtonTexts()
+    {
+        OnPropertyChanged(nameof(ManualQuickJoinText));
+        OnPropertyChanged(nameof(FavoriteQuickJoinText));
+        OnPropertyChanged(nameof(RecentQuickJoinText));
+    }
+
+    partial void OnSelectedFavoriteChanged(FavoriteGame? value) => OnPropertyChanged(nameof(FavoriteQuickJoinText));
+    partial void OnSelectedRecentChanged(RecentGame? value) => OnPropertyChanged(nameof(RecentQuickJoinText));
+
+    partial void OnQuickJoinNameChanged(string value) => OnPropertyChanged(nameof(QuickJoinValueText));
+
+    private void SetQuickJoin(long placeId, string name)
+    {
+        QuickJoinPlaceId = placeId;
+        QuickJoinName = name ?? "";
+        _svc.Settings.Current.QuickJoinPlaceId = placeId;
+        _svc.Settings.Current.QuickJoinName = QuickJoinName;
+        _svc.Settings.Save();
+        Status = placeId == 0 ? "Quick Join cleared." : $"Quick Join set to {(string.IsNullOrWhiteSpace(QuickJoinName) ? $"Place {placeId}" : QuickJoinName)}.";
+    }
+
+    /// <summary>True when every account we'd Quick-Join is already in that game (nothing to launch).</summary>
+    public bool AllTargetsInQuickJoinGame =>
+        HasQuickJoin && TargetAccounts() is { Count: > 0 } t && t.All(a => IsAccountInPlace(a.Id, QuickJoinPlaceId));
+
+    public string QuickJoinButtonText => AllTargetsInQuickJoinGame ? "Already in this game!" : "Quick Join";
+
+    private bool CanQuickJoin() =>
+        HasQuickJoin && SelectedAccount is not null && !Busy && !_batchLaunching
+        && !AllTargetsInQuickJoinGame && DateTime.UtcNow >= _quickJoinCooldownUntil;
+
+    private void NotifyQuickJoinState()
+    {
+        OnPropertyChanged(nameof(AllTargetsInQuickJoinGame));
+        OnPropertyChanged(nameof(QuickJoinButtonText));
+        QuickJoinCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnBusyChanged(bool value) => NotifyQuickJoinState();
+
+    [RelayCommand(CanExecute = nameof(CanQuickJoin))]
+    private async Task QuickJoinAsync()
+    {
+        if (QuickJoinPlaceId == 0) return;
+        // skip any selected account that's already in the Quick Join game
+        var targets = TargetAccounts().Where(a => !IsAccountInPlace(a.Id, QuickJoinPlaceId)).ToList();
+        if (targets.Count == 0) { Status = "Already in the Quick Join game."; return; }
+        await LaunchManyAsync(targets, JoinRequest.Place(QuickJoinPlaceId));
+    }
+
+    /// <summary>Double-click an account row → launch just that account into the Quick Join game.</summary>
+    public async Task QuickJoinAccountAsync(AccountItemViewModel account)
+    {
+        if (QuickJoinPlaceId == 0 || _batchLaunching) return;
+        if (IsAccountInPlace(account.Id, QuickJoinPlaceId))
+        {
+            Status = $"{account.Label} is already in {QuickJoinValueText}.";
+            return;
+        }
+        await LaunchManyAsync(new[] { account.Model }, JoinRequest.Place(QuickJoinPlaceId));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAddFavorite))]
+    private async Task SetManualQuickJoinAsync()
+    {
+        if (!GameLinkParser.TryParse(PlaceIdInput, out var link)) { Status = "Enter a Place ID first."; return; }
+        if (IsQuickJoin(link.PlaceId)) { SetQuickJoin(0, ""); return; }
+        string name = GameName;
+        if (string.IsNullOrWhiteSpace(name))
+            try { name = await new GamesClient(_svc.Pool.Get(SelectedAccount!.Model)).GetPlaceNameAsync(link.PlaceId) ?? ""; }
+            catch { }
+        SetQuickJoin(link.PlaceId, name);
+    }
+
+    [RelayCommand]
+    private void SetQuickJoinFromFavorite(FavoriteGame? game)
+    {
+        game ??= SelectedFavorite;
+        if (game is null) return;
+        if (IsQuickJoin(game.PlaceId)) SetQuickJoin(0, "");
+        else SetQuickJoin(game.PlaceId, game.Name);
+    }
+
+    [RelayCommand]
+    private void SetQuickJoinFromRecent(RecentGame? game)
+    {
+        game ??= SelectedRecent;
+        if (game is null) return;
+        if (IsQuickJoin(game.PlaceId)) { SetQuickJoin(0, ""); return; }
+        SetQuickJoin(game.PlaceId, game.Name);
     }
 
     // --- join: favorites (local, app-managed) ----------------
@@ -565,11 +723,27 @@ public partial class MainViewModel : ObservableObject
 
     // --- launching & instances -------------------------------
 
+    /// <summary>Is this account currently running an instance in the given place?</summary>
+    private bool IsAccountInPlace(Guid accountId, long placeId) =>
+        placeId != 0 && Instances.Any(x => x.Model.AccountId == accountId && x.Model.PlaceId == placeId);
+
     public async Task LaunchAsync(Account acc, JoinRequest join)
     {
         try
         {
             Busy = true;
+
+            // One client per account: tear down any instance this account already has, and clear its
+            // row, before launching the new one.
+            var stale = Instances.FirstOrDefault(x => x.Model.AccountId == acc.Id);
+            if (stale is not null)
+            {
+                Status = $"Closing {acc.DisplayLabel}'s current game…";
+                OnUi(() => Instances.Remove(stale));
+                try { _svc.Instances.Terminate(stale.Model); } catch { }
+                await Task.Delay(1500);   // let the kill land + the singleton free before relaunch
+            }
+
             Status = $"Launching {acc.DisplayLabel}…";
             var result = await _svc.Launcher.LaunchAsync(acc, join);
             var inst = _svc.Instances.Register(acc, join, result.Process, result.Group, result.BrowserTrackerId);

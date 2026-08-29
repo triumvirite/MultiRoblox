@@ -191,12 +191,16 @@ public partial class MainWindow : Window
 
     private void AccountList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        // Double-clicking a signed-out account jumps straight to re-login.
-        if (ItemUnder(e.OriginalSource) is { NeedsReLogin: true } acct)
-        {
-            Vm.ReLogin(acct);
-            e.Handled = true;
-        }
+        if (ItemUnder(e.OriginalSource) is not { } acct) return;
+
+        if (acct.NeedsReLogin)
+            Vm.ReLogin(acct);                       // signed out → re-login
+        else if (Vm.HasQuickJoin)
+            _ = Vm.QuickJoinAccountAsync(acct);     // otherwise → launch into the Quick Join game
+        else
+            return;
+
+        e.Handled = true;
     }
 
     private void AccountList_DragOver(object sender, DragEventArgs e)

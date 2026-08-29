@@ -33,6 +33,10 @@ public sealed class AppSettings
     /// <summary>Last-used join tab: "Manual" / "Favorites" / "Recents" / "PlayerFinder".</summary>
     public string JoinMode { get; set; } = "Manual";
 
+    /// <summary>One-click "Quick Join" target. 0 = none set.</summary>
+    public long QuickJoinPlaceId { get; set; }
+    public string QuickJoinName { get; set; } = "";
+
     /// <summary>User-created account categories (kept even when no account uses one yet).</summary>
     public List<string> Categories { get; set; } = new();
 
