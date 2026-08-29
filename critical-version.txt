@@ -1,4 +1,4 @@
-0.0.0
+2.0.0
 # First line = the lowest version that is NOT affected by a known critical bug.
 # Clients older than this are warned in-app to update immediately.
 # Bump this (e.g. to 2.0.1) in the same commit that ships the critical fix.

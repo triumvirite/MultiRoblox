@@ -12,7 +12,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <AssemblyName>MultiRoblox</AssemblyName>
-    <Version>1.6.0</Version>
+    <Version>2.0.0</Version>
     <RootNamespace>MultiRoblox.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
