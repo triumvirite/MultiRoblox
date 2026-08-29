@@ -215,7 +215,6 @@
                          DragOver="AccountList_DragOver"
                          Drop="AccountList_Drop"
                          ContextMenuOpening="AccountList_ContextMenuOpening"
-                         MouseDoubleClick="AccountList_MouseDoubleClick"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:AccountItemViewModel}">
@@ -324,10 +323,16 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding SelectionSummary, FallbackValue='Select an account'}" Style="{StaticResource H1}"
-                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0"
-                               ToolTip="{Binding SelectionSummary}"/>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                        <!-- game picked for the active join tab (drives the Join button below); "No game selected" when none -->
+                        <TextBlock Text="{Binding SelectedGameHeader, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SubtleText}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding SelectionSummary, FallbackValue='Select an account'}" Style="{StaticResource H1}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding SelectionSummary}"/>
+                    </StackPanel>
+                    <!-- Bottom (not Stretch) so the buttons keep their natural height even though the
+                         header grew a line when the "selected game" text was added above the title. -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                         <Button Content="{Binding AccountViewToggleText}" Command="{Binding ToggleAccountViewCommand}"
                                 Padding="10,3" Style="{StaticResource LavenderButton}"/>
 
@@ -538,7 +543,7 @@
                         <Grid>
                         <ListBox ItemsSource="{Binding Favorites}" SelectedItem="{Binding SelectedFavorite}"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                 MouseDoubleClick="Favorite_DoubleClick">
+                                 PreviewMouseLeftButtonDown="Favorite_PreviewMouseDown">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel>
@@ -567,13 +572,15 @@
                                Visibility="{Binding JoinModeValue, Converter={StaticResource EqVis}, ConverterParameter=Recents}">
                         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                             <Button Content="Join" Style="{StaticResource AccentButton}" Command="{Binding JoinRecentCommand}"/>
+                            <Button Content="★ Favorite" Margin="8,0,0,0" Style="{StaticResource GoldButton}"
+                                    Command="{Binding FavoriteRecentCommand}" ToolTip="Save this game to your favorites"/>
                             <Button Content="{Binding RecentQuickJoinText}" Margin="8,0,0,0" Command="{Binding SetQuickJoinFromRecentCommand}"/>
                             <Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding ClearRecentsCommand}"/>
                         </StackPanel>
                         <ListBox ItemsSource="{Binding Recents}" SelectedItem="{Binding SelectedRecent}"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                  Grid.IsSharedSizeScope="True"
-                                 MouseDoubleClick="Recent_DoubleClick">
+                                 PreviewMouseLeftButtonDown="Recent_PreviewMouseDown">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <!-- one line: Game Name | Game ID | Timestamp (last two columns aligned across rows) -->

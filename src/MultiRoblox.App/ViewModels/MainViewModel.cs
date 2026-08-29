@@ -155,10 +155,53 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnJoinModeValueChanged(JoinMode value)
     {
-        if (!_joinModeLoaded) return;
-        _svc.Settings.Current.JoinMode = value.ToString();
-        _svc.Settings.Save();
+        if (_joinModeLoaded)
+        {
+            _svc.Settings.Current.JoinMode = value.ToString();
+            _svc.Settings.Save();
+        }
+
+        // Each tab is its own way of picking a game — moving between them starts with a clean slate.
+        PlaceIdInput = "";
+        JobIdInput = "";
+        SelectedFavorite = null;
+        SelectedRecent = null;
+        GameName = "";
+
+        NotifySelectedGame();
+        NotifyLaunchStates();
     }
+
+    // --- selected game (shown above the running-instances list; also gates the tab's Join button) ---
+
+    /// <summary>The game picked for the active join tab. Manual counts as soon as a place id is entered.</summary>
+    public string SelectedGameName => JoinModeValue switch
+    {
+        JoinMode.Manual => !string.IsNullOrWhiteSpace(GameName) ? GameName
+                           : ManualPlaceId != 0 ? $"Place {ManualPlaceId}" : "",
+        JoinMode.Favorites => SelectedFavorite?.Name ?? "",
+        JoinMode.Recents => SelectedRecent?.Name ?? "",
+        _ => "",
+    };
+
+    public bool HasSelectedGame => JoinModeValue switch
+    {
+        JoinMode.Manual => ManualPlaceId != 0,
+        JoinMode.Favorites => SelectedFavorite is not null,
+        JoinMode.Recents => SelectedRecent is not null,
+        _ => false,
+    };
+
+    public string SelectedGameHeader => HasSelectedGame ? SelectedGameName : "No game selected";
+
+    private void NotifySelectedGame()
+    {
+        OnPropertyChanged(nameof(SelectedGameName));
+        OnPropertyChanged(nameof(HasSelectedGame));
+        OnPropertyChanged(nameof(SelectedGameHeader));
+    }
+
+    partial void OnGameNameChanged(string value) => NotifySelectedGame();
 
     // --- categories ----------------------------------------------
 
@@ -413,6 +456,7 @@ public partial class MainViewModel : ObservableObject
         AddFavoriteCommand.NotifyCanExecuteChanged();
         SetManualQuickJoinCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(ManualQuickJoinText));
+        NotifySelectedGame();
         _ = ResolveGameNameAsync(value);
     }
 
@@ -542,8 +586,20 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(RecentQuickJoinText));
     }
 
-    partial void OnSelectedFavoriteChanged(FavoriteGame? value) => OnPropertyChanged(nameof(FavoriteQuickJoinText));
-    partial void OnSelectedRecentChanged(RecentGame? value) => OnPropertyChanged(nameof(RecentQuickJoinText));
+    partial void OnSelectedFavoriteChanged(FavoriteGame? value)
+    {
+        OnPropertyChanged(nameof(FavoriteQuickJoinText));
+        NotifySelectedGame();
+        JoinFavoriteCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnSelectedRecentChanged(RecentGame? value)
+    {
+        OnPropertyChanged(nameof(RecentQuickJoinText));
+        NotifySelectedGame();
+        JoinRecentCommand.NotifyCanExecuteChanged();
+        FavoriteRecentCommand.NotifyCanExecuteChanged();
+    }
 
     partial void OnQuickJoinNameChanged(string value) => OnPropertyChanged(nameof(QuickJoinValueText));
 
@@ -689,7 +745,9 @@ public partial class MainViewModel : ObservableObject
     /// <summary>A launch button — needs an account picked, like the Manual "Join".</summary>
     private bool CanLaunchSelected() => SelectedAccount is not null && !Busy && !_batchLaunching;
 
-    [RelayCommand(CanExecute = nameof(CanLaunchSelected))]
+    private bool CanJoinFavorite() => CanLaunchSelected() && SelectedFavorite is not null;
+
+    [RelayCommand(CanExecute = nameof(CanJoinFavorite))]
     private async Task JoinFavoriteAsync(FavoriteGame? game)
     {
         game ??= SelectedFavorite;
@@ -726,12 +784,32 @@ public partial class MainViewModel : ObservableObject
         OnUi(ReloadRecents);
     }
 
-    [RelayCommand(CanExecute = nameof(CanLaunchSelected))]
+    private bool CanJoinRecent() => CanLaunchSelected() && SelectedRecent is not null;
+
+    [RelayCommand(CanExecute = nameof(CanJoinRecent))]
     private async Task JoinRecentAsync(RecentGame? game)
     {
         game ??= SelectedRecent;
         if (game is null || game.PlaceId == 0) return;
         await LaunchManyAsync(TargetAccounts(), JoinRequest.Place(game.PlaceId));
+    }
+
+    private bool CanFavoriteRecent() => SelectedRecent is not null;
+
+    [RelayCommand(CanExecute = nameof(CanFavoriteRecent))]
+    private void FavoriteRecent()
+    {
+        var game = SelectedRecent;
+        if (game is null || game.PlaceId == 0) return;
+        if (_svc.Settings.Current.Favorites.Any(f => f.PlaceId == game.PlaceId))
+        {
+            Status = $"*{game.Name}* is already in favorites.";
+            return;
+        }
+        _svc.Settings.Current.Favorites.Add(new FavoriteGame { PlaceId = game.PlaceId, Name = game.Name });
+        _svc.Settings.Save();
+        ReloadFavorites();
+        Status = $"Favorited *{game.Name}*.";
     }
 
     [RelayCommand]

@@ -273,6 +273,48 @@ public partial class MainWindow : Window
         _dragStart = e.GetPosition(null);
         bool onButton = FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null;
         _dragItem = (_menuOpen || onButton) ? null : ItemUnder(e.OriginalSource);
+
+        if (DoubleClickTarget(AccountList, e) is AccountItemViewModel acct)
+        {
+            if (acct.NeedsReLogin) Vm.ReLogin(acct);
+            else if (Vm.HasQuickJoin) _ = Vm.QuickJoinAccountAsync(acct);
+        }
+    }
+
+    // ---------- custom double-click: tighter window than the OS default, ignores Ctrl/Shift
+    //            (multi-select gestures), and only starts counting once the row is already selected —
+    //            so a click that first selects the row never becomes a double-click. ----------
+    private const double DoubleClickMs = 280;
+    private object? _dcItem;
+    private DateTime _dcTime;
+
+    /// <summary>Call from a list's PreviewMouseLeftButtonDown; returns the row's item when this click
+    /// completes a valid double-click, else null.</summary>
+    private object? DoubleClickTarget(ListBox list, MouseButtonEventArgs e)
+    {
+        if (FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null) { _dcItem = null; return null; }
+
+        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject)?.DataContext;
+        if (item is null || (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) != 0)
+        {
+            _dcItem = null;
+            return null;
+        }
+
+        // Preview fires before the ListBox updates selection, so this is the pre-click state.
+        if (!list.SelectedItems.Contains(item))
+        {
+            _dcItem = null;   // this click only selects the row — don't begin double-click tracking
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        bool isDouble = ReferenceEquals(item, _dcItem)
+                        && (now - _dcTime).TotalMilliseconds <= DoubleClickMs;
+
+        _dcItem = item;
+        _dcTime = now;
+        return isDouble ? item : null;
     }
 
     private void AccountList_MouseMove(object sender, MouseEventArgs e)
@@ -293,22 +335,6 @@ public partial class MainWindow : Window
             Vm.PersistOrder();
             _dragItem = null;
         }
-    }
-
-    private void AccountList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-    {
-        // a click on the row's own buttons (e.g. the description icon) is not a row double-click
-        if (FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null) return;
-        if (ItemUnder(e.OriginalSource) is not { } acct) return;
-
-        if (acct.NeedsReLogin)
-            Vm.ReLogin(acct);                       // signed out → re-login
-        else if (Vm.HasQuickJoin)
-            _ = Vm.QuickJoinAccountAsync(acct);     // otherwise → launch into the Quick Join game
-        else
-            return;
-
-        e.Handled = true;
     }
 
     private void AccountList_DragOver(object sender, DragEventArgs e)
@@ -491,10 +517,11 @@ public partial class MainWindow : Window
 
     // ---------- favorites ----------
 
-    private void Favorite_DoubleClick(object sender, MouseButtonEventArgs e)
+    private void Favorite_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (Vm.SelectedFavorite is not null && Vm.JoinFavoriteCommand.CanExecute(Vm.SelectedFavorite))
-            Vm.JoinFavoriteCommand.Execute(Vm.SelectedFavorite);
+        if (DoubleClickTarget((ListBox)sender, e) is FavoriteGame fav
+            && Vm.JoinFavoriteCommand.CanExecute(fav))
+            Vm.JoinFavoriteCommand.Execute(fav);
     }
 
     private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
@@ -503,10 +530,11 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void Recent_DoubleClick(object sender, MouseButtonEventArgs e)
+    private void Recent_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (Vm.SelectedRecent is not null && Vm.JoinRecentCommand.CanExecute(Vm.SelectedRecent))
-            Vm.JoinRecentCommand.Execute(Vm.SelectedRecent);
+        if (DoubleClickTarget((ListBox)sender, e) is RecentGame rec
+            && Vm.JoinRecentCommand.CanExecute(rec))
+            Vm.JoinRecentCommand.Execute(rec);
     }
 
     private sealed class SimpleCommand(Action run) : ICommand
