@@ -54,7 +54,7 @@ public partial class MainViewModel : ObservableObject
         else if (SelectedAccounts.Count > 1 && (SelectedAccount is null || !SelectedAccounts.Contains(SelectedAccount)))
             SelectedAccount = SelectedAccounts[^1];
         OnPropertyChanged(nameof(SelectionSummary));
-        JoinCommand.NotifyCanExecuteChanged();
+        NotifyLaunchStates();
         AddFavoriteCommand.NotifyCanExecuteChanged();
         NotifyQuickJoinState();
     }
@@ -354,6 +354,8 @@ public partial class MainViewModel : ObservableObject
         AccountsView.Refresh();
         if (selectedId is not null)
             SelectedAccount = Accounts.FirstOrDefault(a => a.Id == selectedId);
+
+        FindPlayersCommand.NotifyCanExecuteChanged();   // depends only on "any account exists"
     }
 
     private bool FilterAccount(object o)
@@ -375,7 +377,7 @@ public partial class MainViewModel : ObservableObject
             PlaceIdInput = value.Model.SavedPlaceId;
             JobIdInput = value.Model.SavedJobId;
         }
-        JoinCommand.NotifyCanExecuteChanged();
+        NotifyLaunchStates();
         AddFavoriteCommand.NotifyCanExecuteChanged();
         SetManualQuickJoinCommand.NotifyCanExecuteChanged();
         NotifyQuickJoinState();
@@ -394,9 +396,17 @@ public partial class MainViewModel : ObservableObject
     private bool CanJoin() =>
         SelectedAccount is not null && !Busy && !_batchLaunching && GameLinkParser.TryParse(PlaceIdInput, out _);
 
-    partial void OnPlaceIdInputChanged(string value)
+    /// <summary>Re-evaluate every button that actually launches a game.</summary>
+    private void NotifyLaunchStates()
     {
         JoinCommand.NotifyCanExecuteChanged();
+        JoinFavoriteCommand.NotifyCanExecuteChanged();
+        JoinRecentCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnPlaceIdInputChanged(string value)
+    {
+        JoinCommand.NotifyCanExecuteChanged();   // only the Manual join depends on the place-id text
         AddFavoriteCommand.NotifyCanExecuteChanged();
         SetManualQuickJoinCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(ManualQuickJoinText));
@@ -449,7 +459,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (accounts.Count == 0 || _batchLaunching) return;
         _batchLaunching = true;
-        JoinCommand.NotifyCanExecuteChanged();
+        NotifyLaunchStates();
         try
         {
             for (int i = 0; i < accounts.Count; i++)
@@ -470,7 +480,7 @@ public partial class MainViewModel : ObservableObject
         finally
         {
             _batchLaunching = false;
-            JoinCommand.NotifyCanExecuteChanged();
+            NotifyLaunchStates();
             if (HasQuickJoin && join.PlaceId != QuickJoinPlaceId)
                 StartQuickJoinCooldown();
             else
@@ -561,7 +571,11 @@ public partial class MainViewModel : ObservableObject
         QuickJoinCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnBusyChanged(bool value) => NotifyQuickJoinState();
+    partial void OnBusyChanged(bool value)
+    {
+        NotifyQuickJoinState();
+        NotifyLaunchStates();
+    }
 
     [RelayCommand(CanExecute = nameof(CanQuickJoin))]
     private async Task QuickJoinAsync()
@@ -591,8 +605,8 @@ public partial class MainViewModel : ObservableObject
         if (!GameLinkParser.TryParse(PlaceIdInput, out var link)) { Status = "Enter a Place ID first."; return; }
         if (IsQuickJoin(link.PlaceId)) { SetQuickJoin(0, ""); return; }
         string name = GameName;
-        if (string.IsNullOrWhiteSpace(name))
-            try { name = await new GamesClient(_svc.Pool.Get(SelectedAccount!.Model)).GetPlaceNameAsync(link.PlaceId) ?? ""; }
+        if (string.IsNullOrWhiteSpace(name) && AnyAccountForLookup is { } acc)
+            try { name = await new GamesClient(_svc.Pool.Get(acc)).GetPlaceNameAsync(link.PlaceId) ?? ""; }
             catch { }
         SetQuickJoin(link.PlaceId, name);
     }
@@ -626,7 +640,11 @@ public partial class MainViewModel : ObservableObject
             Favorites.Add(f);
     }
 
-    private bool CanAddFavorite() => SelectedAccount is not null && GameLinkParser.TryParse(PlaceIdInput, out _);
+    // Favoriting / setting Quick Join only needs a valid place id — it uses any account just to look
+    // up the game's name (and falls back to "Place <id>" if there is none).
+    private bool CanAddFavorite() => GameLinkParser.TryParse(PlaceIdInput, out _);
+
+    private Account? AnyAccountForLookup => SelectedAccount?.Model ?? _svc.Accounts.Accounts.FirstOrDefault();
 
     [RelayCommand(CanExecute = nameof(CanAddFavorite))]
     private async Task AddFavoriteAsync()
@@ -640,8 +658,9 @@ public partial class MainViewModel : ObservableObject
         }
         Status = "Adding to favorites…";
         string? name = null;
-        try { name = await new GamesClient(_svc.Pool.Get(SelectedAccount!.Model)).GetPlaceNameAsync(link.PlaceId); }
-        catch { }
+        if (AnyAccountForLookup is { } acc)
+            try { name = await new GamesClient(_svc.Pool.Get(acc)).GetPlaceNameAsync(link.PlaceId); }
+            catch { }
 
         var fav = new FavoriteGame { PlaceId = link.PlaceId, Name = string.IsNullOrWhiteSpace(name) ? $"Place {link.PlaceId}" : name! };
         _svc.Settings.Current.Favorites.Add(fav);
@@ -663,7 +682,10 @@ public partial class MainViewModel : ObservableObject
         Status = $"Removed *{game.Name}* from favorites.";
     }
 
-    [RelayCommand]
+    /// <summary>A launch button — needs an account picked, like the Manual "Join".</summary>
+    private bool CanLaunchSelected() => SelectedAccount is not null && !Busy && !_batchLaunching;
+
+    [RelayCommand(CanExecute = nameof(CanLaunchSelected))]
     private async Task JoinFavoriteAsync(FavoriteGame? game)
     {
         game ??= SelectedFavorite;
@@ -700,7 +722,7 @@ public partial class MainViewModel : ObservableObject
         OnUi(ReloadRecents);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanLaunchSelected))]
     private async Task JoinRecentAsync(RecentGame? game)
     {
         game ??= SelectedRecent;
@@ -719,10 +741,12 @@ public partial class MainViewModel : ObservableObject
 
     // --- join: player finder ---------------------------------
 
-    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private bool CanFindPlayers() => _svc.Accounts.Accounts.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(CanFindPlayers))]
     private async Task FindPlayersAsync()
     {
-        var acc = SelectedAccount?.Model;
+        var acc = AnyAccountForLookup;
         if (acc is null) return;
         FinderResults.Clear();
         var names = FinderQuery.Split(new[] { ',', ' ', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries);

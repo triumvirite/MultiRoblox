@@ -69,9 +69,15 @@
 
     <Grid Background="{DynamicResource Bg}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="270"/>
+            <ColumnDefinition x:Name="SidebarColumn" Width="270" MinWidth="210" MaxWidth="520"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+
+        <!-- drag the sidebar / main split -->
+        <GridSplitter Grid.Column="0" Width="6" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                      Background="Transparent" ShowsPreview="False" Panel.ZIndex="10"
+                      ResizeBehavior="CurrentAndNext" ResizeDirection="Columns"
+                      DragCompleted="SidebarSplitter_DragCompleted"/>
 
         <!-- ===================== Sidebar ===================== -->
         <Border Grid.Column="0" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
@@ -126,7 +132,7 @@
                                 Command="{Binding QuickJoinCommand}" Margin="0,0,3,0"
                                 ToolTip="Launch the selected account into your Quick Join game">
                             <Button.Style>
-                                <Style TargetType="Button" BasedOn="{StaticResource AccentButton}">
+                                <Style TargetType="Button" BasedOn="{StaticResource SuccessButton}">
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding AllTargetsInQuickJoinGame}" Value="True">
                                             <Setter Property="FontStyle" Value="Italic"/>
@@ -170,10 +176,18 @@
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:AccountItemViewModel}">
-                            <Grid Margin="4,6">
+                            <Grid Margin="4,2"
+                                  ToolTipService.InitialShowDelay="0" ToolTipService.BetweenShowDelay="0"
+                                  ToolTipService.ShowDuration="120000" ToolTipService.Placement="Right"
+                                  ToolTipService.ShowOnDisabled="True">
                                 <Grid.Style>
                                     <Style TargetType="Grid">
+                                        <!-- hover shows the account's description to the right, instantly; none if empty -->
+                                        <Setter Property="ToolTip" Value="{Binding Note}"/>
                                         <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Note}" Value="">
+                                                <Setter Property="ToolTip" Value="{x:Null}"/>
+                                            </DataTrigger>
                                             <DataTrigger Binding="{Binding IsDragging}" Value="True">
                                                 <Setter Property="Opacity" Value="0.35"/>
                                             </DataTrigger>
@@ -241,65 +255,14 @@
                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,12,0"
                                ToolTip="{Binding SelectionSummary}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Grid>
-                            <Button x:Name="UpdateButton" Click="UpdateButton_Click" ToolTip="{Binding UpdateTooltip}"
-                                    AutomationProperties.Name="UpdateToggle">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
-                                    <Ellipse Width="8" Height="8" Margin="6,0,0,0" VerticalAlignment="Center"
-                                             Fill="{Binding UpdateState, Converter={StaticResource UpdateBrush}}"/>
-                                </StackPanel>
-                            </Button>
+                        <Button Content="{Binding AccountViewToggleText}" Command="{Binding ToggleAccountViewCommand}"
+                                Padding="10,3" Style="{StaticResource LavenderButton}"/>
 
-                            <!-- update dropdown, centred under the button -->
-                            <Popup x:Name="UpdatePopup" IsOpen="{Binding UpdatePopupOpen, Mode=TwoWay}" StaysOpen="False"
-                                   PlacementTarget="{Binding ElementName=UpdateButton}" Closed="UpdatePopup_Closed"
-                                   Placement="Custom" VerticalOffset="6" AllowsTransparency="True">
-                                <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
-                                        BorderThickness="1" CornerRadius="8" Width="300" Padding="14"
-                                        TextElement.Foreground="{DynamicResource Text}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding UpdateHeadline}" FontSize="16" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Text}"/>
-                                        <Grid Margin="0,10,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
-                                            <TextBlock Text="Installed" Style="{StaticResource Subtle}" Margin="0,0,14,3"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding UpdateInstalledText}" Margin="0,0,0,3"
-                                                       Foreground="{DynamicResource Text}"/>
-                                            <TextBlock Grid.Row="1" Text="Latest" Style="{StaticResource Subtle}" Margin="0,0,14,0"/>
-                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdateLatestText}"
-                                                       Foreground="{DynamicResource Text}"/>
-                                        </Grid>
-                                        <ProgressBar Height="5" Margin="0,12,0,0" Minimum="0" Maximum="1"
-                                                     Value="{Binding UpdateProgress}"
-                                                     Visibility="{Binding UpdateInstalling, Converter={StaticResource BoolVis}}"
-                                                     Foreground="{DynamicResource Accent}" Background="{DynamicResource Surface2}"/>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                                            <Button Content="Update now" Style="{StaticResource AccentButton}"
-                                                    Command="{Binding InstallUpdateCommand}"
-                                                    IsEnabled="{Binding UpdateCanInstall}"
-                                                    Visibility="{Binding UpdateCanInstall, Converter={StaticResource BoolVis}}"/>
-                                            <Button Content="Close" Margin="8,0,0,0" Style="{StaticResource DangerButton}"
-                                                    Command="{Binding DismissUpdateCommand}"/>
-                                        </StackPanel>
-                                        <TextBlock Margin="0,10,0,0">
-                                            <Hyperlink NavigateUri="https://github.com/triumvirite/MultiRoblox"
-                                                       RequestNavigate="Hyperlink_RequestNavigate"
-                                                       Foreground="{DynamicResource Accent}" TextDecorations="Underline">
-                                                Click here for the GitHub repo
-                                            </Hyperlink>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </Border>
-                            </Popup>
-                        </Grid>
-
-                        <Button Margin="8,0,0,0" Background="{Binding ThemeToggleBackground}"
+                        <!-- fixed width so "Dark theme" vs "Light theme" doesn't nudge the row on toggle -->
+                        <Button Margin="8,0,0,0" Width="100" Background="{Binding ThemeToggleBackground}"
                                 Command="{Binding ToggleThemeCommand}" ToolTip="Switch the app to this theme">
-                            <TextBlock Text="{Binding ThemeToggleText}" Foreground="{Binding ThemeToggleForeground}"/>
+                            <TextBlock Text="{Binding ThemeToggleText}" TextAlignment="Center"
+                                       Foreground="{Binding ThemeToggleForeground}"/>
                         </Button>
                         <Button Content="Settings" Margin="8,0,0,0" Command="{Binding OpenSettingsCommand}"/>
                     </StackPanel>
@@ -312,7 +275,63 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Button Content="{Binding AccountViewToggleText}" Command="{Binding ToggleAccountViewCommand}" Padding="10,3"/>
+                    <Grid>
+                        <Button x:Name="UpdateButton" Click="UpdateButton_Click" ToolTip="{Binding UpdateTooltip}"
+                                AutomationProperties.Name="UpdateToggle" Padding="10,3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding UpdateButtonText}" VerticalAlignment="Center"/>
+                                <Ellipse Width="8" Height="8" Margin="6,0,0,0" VerticalAlignment="Center"
+                                         Fill="{Binding UpdateState, Converter={StaticResource UpdateBrush}}"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- update dropdown: bottom-left on the button's top-left, 10px gap -->
+                        <Popup x:Name="UpdatePopup" IsOpen="{Binding UpdatePopupOpen, Mode=TwoWay}" StaysOpen="False"
+                               PlacementTarget="{Binding ElementName=UpdateButton}" Closed="UpdatePopup_Closed"
+                               Placement="Custom" AllowsTransparency="True">
+                            <Border Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}"
+                                    BorderThickness="1" CornerRadius="8" Width="300" Padding="14"
+                                    TextElement.Foreground="{DynamicResource Text}">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding UpdateHeadline}" FontSize="16" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource Text}"/>
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                        <TextBlock Text="Installed" Style="{StaticResource Subtle}" Margin="0,0,14,3"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding UpdateInstalledText}" Margin="0,0,0,3"
+                                                   Foreground="{DynamicResource Text}"/>
+                                        <TextBlock Grid.Row="1" Text="Latest" Style="{StaticResource Subtle}" Margin="0,0,14,0"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding UpdateLatestText}"
+                                                   Foreground="{DynamicResource Text}"/>
+                                    </Grid>
+                                    <ProgressBar Height="5" Margin="0,12,0,0" Minimum="0" Maximum="1"
+                                                 Value="{Binding UpdateProgress}"
+                                                 Visibility="{Binding UpdateInstalling, Converter={StaticResource BoolVis}}"
+                                                 Foreground="{DynamicResource Accent}" Background="{DynamicResource Surface2}"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                                        <Button Content="Update now" Style="{StaticResource AccentButton}"
+                                                Command="{Binding InstallUpdateCommand}"
+                                                IsEnabled="{Binding UpdateCanInstall}"
+                                                Visibility="{Binding UpdateCanInstall, Converter={StaticResource BoolVis}}"/>
+                                        <Button Content="Close" Margin="8,0,0,0" Style="{StaticResource DangerButton}"
+                                                Command="{Binding DismissUpdateCommand}"/>
+                                    </StackPanel>
+                                    <TextBlock Margin="0,10,0,0" Foreground="{DynamicResource LinkText}">
+                                        <!-- LinkText is per-theme: #5865F2 on light, a brighter periwinkle on
+                                             dark so it stays legible against the dark surface -->
+                                        <Hyperlink NavigateUri="https://github.com/triumvirite/MultiRoblox"
+                                                   RequestNavigate="Hyperlink_RequestNavigate"
+                                                   Foreground="{DynamicResource LinkText}" TextDecorations="Underline">
+                                            Click here for the GitHub repo
+                                        </Hyperlink>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </Popup>
+                    </Grid>
                     <TextBlock Grid.Column="1" app:StatusMarkup.Text="{Binding Status}" Style="{StaticResource Subtle}"
                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="12,0,4,0"
                                TextTrimming="CharacterEllipsis"/>
@@ -327,18 +346,18 @@
                 <DataGrid x:Name="AccountsGrid" ItemsSource="{Binding AccountGrid}" PreviewMouseWheel="Grid_PreviewMouseWheel"
                           PreviewMouseLeftButtonDown="AccountsGrid_CellSingleClick">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="Username" Width="180" IsReadOnly="True"
+                        <DataGridTextColumn Header="Username" Width="1.2*" IsReadOnly="True"
                                             Binding="{Binding Label}"
                                             ElementStyle="{StaticResource GridDisplayText}"/>
-                        <DataGridTextColumn Header="Alias" Width="160"
+                        <DataGridTextColumn Header="Alias" Width="1*"
                                             Binding="{Binding Alias}"
                                             ElementStyle="{StaticResource GridDisplayText}"
                                             EditingElementStyle="{StaticResource GridEditText}"/>
-                        <DataGridTextColumn Header="Description" Width="300"
+                        <DataGridTextColumn Header="Description" Width="2*"
                                             Binding="{Binding Note}"
                                             ElementStyle="{StaticResource GridDisplayText}"
                                             EditingElementStyle="{StaticResource GridEditText}"/>
-                        <DataGridTemplateColumn Header="Categories" Width="220" IsReadOnly="True">
+                        <DataGridTemplateColumn Header="Categories" Width="1.4*" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Grid>
@@ -392,7 +411,8 @@
                 </Grid.RowDefinitions>
 
                 <!-- ============ Join panel ============ -->
-                <StackPanel Margin="16" IsEnabled="{Binding SelectedAccount, Converter={StaticResource NotNull}}">
+                <!-- No panel-wide gate: only the actual Join / Quick Join buttons need a selected account. -->
+                <StackPanel Margin="16">
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Manual" Style="{StaticResource ModeManual}"
                                 Command="{Binding SetJoinModeCommand}" CommandParameter="Manual"/>
@@ -466,18 +486,24 @@
                         </StackPanel>
                         <ListBox ItemsSource="{Binding Recents}" SelectedItem="{Binding SelectedRecent}"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                 Grid.IsSharedSizeScope="True"
                                  MouseDoubleClick="Recent_DoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <DockPanel>
-                                        <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                            <TextBlock x:Name="Ago" Text="{Binding LastPlayed, Converter={StaticResource Ago}}"
-                                                       FontSize="11" Foreground="{DynamicResource SubtleText}" TextAlignment="Right"/>
-                                            <TextBlock x:Name="Pid" Text="{Binding PlaceId}" FontSize="11"
-                                                       Foreground="{DynamicResource SubtleText}" TextAlignment="Right"/>
-                                        </StackPanel>
+                                    <!-- one line: Game Name | Game ID | Timestamp (last two columns aligned across rows) -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="RecPid"/>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="RecAgo"/>
+                                        </Grid.ColumnDefinitions>
                                         <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" Padding="2" VerticalAlignment="Center"/>
-                                    </DockPanel>
+                                        <TextBlock x:Name="Pid" Grid.Column="1" Text="{Binding PlaceId}" FontSize="12" Margin="28,0"
+                                                   TextAlignment="Center" Foreground="{DynamicResource SubtleText}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="Ago" Grid.Column="2" Text="{Binding LastPlayed, Converter={StaticResource Ago}}"
+                                                   FontSize="12" Margin="16,0,6,0"
+                                                   TextAlignment="Right" Foreground="{DynamicResource SubtleText}" VerticalAlignment="Center"/>
+                                    </Grid>
                                     <DataTemplate.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
                                             <Setter TargetName="Pid" Property="Foreground" Value="{StaticResource OnAccentMuted}"/>
@@ -545,10 +571,10 @@
                     <DataGrid ItemsSource="{Binding Instances}" IsReadOnly="True" BorderThickness="1,0,1,1"
                               RowHeight="44" PreviewMouseWheel="Grid_PreviewMouseWheel">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Account" Width="200"
+                            <DataGridTextColumn Header="Account" Width="2*"
                                                 Binding="{Binding AccountLabel}"
                                                 ElementStyle="{StaticResource GridDisplayText}"/>
-                            <DataGridTemplateColumn Header="Where" Width="150">
+                            <DataGridTemplateColumn Header="Where" Width="1.6*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel VerticalAlignment="Center">
@@ -560,10 +586,10 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="State" Width="120"
+                            <DataGridTextColumn Header="State" Width="1.2*"
                                                 Binding="{Binding StateText}"
                                                 ElementStyle="{StaticResource GridDisplayText}"/>
-                            <DataGridTemplateColumn Header="" Width="*" MinWidth="90" CanUserResize="False"
+                            <DataGridTemplateColumn Header="" Width="112" MinWidth="112" CanUserResize="False"
                                                     HeaderStyle="{StaticResource LastColumnHeader}"
                                                     CellStyle="{StaticResource LastColumnCell}">
                                 <DataGridTemplateColumn.CellTemplate>

@@ -54,4 +54,7 @@ public sealed class AppSettings
 
     /// <summary>Saved column layout (width / order / sort) per data grid, keyed by a stable grid id.</summary>
     public Dictionary<string, List<GridColumnState>> GridLayouts { get; set; } = new();
+
+    /// <summary>Width of the account sidebar column (draggable splitter). 0 = use the default.</summary>
+    public double SidebarWidth { get; set; }
 }

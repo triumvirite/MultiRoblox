@@ -19,12 +19,17 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        UpdatePopup.CustomPopupPlacementCallback = CenterUnderTarget;
+        UpdatePopup.CustomPopupPlacementCallback = AboveTargetLeftAligned;
         AddHandler(PreviewMouseDownEvent, new MouseButtonEventHandler(DismissCatPopupOnOutsideClick), handledEventsToo: true);
         AddHandler(PreviewMouseDownEvent, new MouseButtonEventHandler(CommitGridEditOnOutsideClick), handledEventsToo: true);
         Deactivated += (_, _) => { CloseCatPopup(); AccountsGrid?.CommitEdit(DataGridEditingUnit.Row, true); };
 
-        Loaded += (_, _) => RestoreGridLayout(AccountsGrid, "AccountsGrid");
+        Loaded += (_, _) =>
+        {
+            RestoreGridLayout(AccountsGrid, "AccountsGrid");
+            var w = App.Services.Settings.Current.SidebarWidth;
+            if (w > 0) SidebarColumn.Width = new GridLength(w);
+        };
         Closing += (_, _) => SaveGridLayout(AccountsGrid, "AccountsGrid");
         AccountsGrid.ColumnReordered += (_, _) => SaveGridLayout(AccountsGrid, "AccountsGrid");
         AccountsGrid.Sorting += (_, _) => Dispatcher.BeginInvoke(new Action(() => SaveGridLayout(AccountsGrid, "AccountsGrid")));
@@ -48,7 +53,10 @@ public partial class MainWindow : Window
             {
                 var col = grid.Columns.FirstOrDefault(c => (c.Header as string) == st.Header);
                 if (col is null) continue;
-                if (st.Width > 0 && col.CanUserResize) col.Width = new DataGridLength(st.Width);
+                // Restore widths as *star weights* (using the saved pixel numbers as the ratio) so the
+                // columns keep filling the grid; fixed-width columns (e.g. a button column) are left alone.
+                if (st.Width > 0 && col.CanUserResize)
+                    col.Width = new DataGridLength(st.Width, DataGridLengthUnitType.Star);
                 if (st.DisplayIndex >= 0 && st.DisplayIndex < grid.Columns.Count) col.DisplayIndex = st.DisplayIndex;
                 col.SortDirection = st.SortDirection switch
                 {
@@ -67,6 +75,12 @@ public partial class MainWindow : Window
             }
         }
         finally { _restoringGrid = false; }
+    }
+
+    private void SidebarSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        App.Services.Settings.Current.SidebarWidth = SidebarColumn.ActualWidth;
+        App.Services.Settings.Save();
     }
 
     private void SaveGridLayout(DataGrid grid, string id)
@@ -131,12 +145,15 @@ public partial class MainWindow : Window
         Vm.CheckForUpdateCommand.Execute(null);
     }
 
-    /// <summary>Centre the update dropdown horizontally under the button.</summary>
-    private static CustomPopupPlacement[] CenterUnderTarget(Size popupSize, Size targetSize, Point offset)
+    private const double UpdatePopupGap = 5;
+
+    /// <summary>Place the update dropdown above the button: popup bottom-left on the button's top-left,
+    /// minus a fixed vertical gap.</summary>
+    private static CustomPopupPlacement[] AboveTargetLeftAligned(Size popupSize, Size targetSize, Point offset)
         => new[]
         {
             new CustomPopupPlacement(
-                new Point((targetSize.Width - popupSize.Width) / 2, targetSize.Height + offset.Y),
+                new Point(0, -popupSize.Height - UpdatePopupGap),
                 PopupPrimaryAxis.Horizontal),
         };
 
@@ -361,6 +378,15 @@ public partial class MainWindow : Window
                     Header = "Clear alias",
                     Command = new SimpleCommand(() => one.Alias = ""),
                 });
+            menu.Items.Add(new MenuItem
+            {
+                Header = "Set description…",
+                Command = new SimpleCommand(() =>
+                {
+                    var v = Services.Dialogs.Prompt("Description", $"Description for {one.Label}:", one.Note);
+                    if (v is not null) one.Note = v;
+                }),
+            });
             menu.Items.Add(new Separator());
         }
 

@@ -139,6 +139,19 @@
         <Setter Property="TextElement.Foreground" Value="{StaticResource OnDanger}"/>
     </Style>
 
+    <Style x:Key="SuccessButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{DynamicResource Ok}"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="TextElement.Foreground" Value="#FFFFFF"/>
+    </Style>
+
+    <SolidColorBrush x:Key="Lavender" Color="#5B3A9B"/>
+    <Style x:Key="LavenderButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource Lavender}"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="TextElement.Foreground" Value="#FFFFFF"/>
+    </Style>
+
     <SolidColorBrush x:Key="Gold" Color="#E8A317"/>
     <Style x:Key="GoldButton" TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
         <Setter Property="Background" Value="{StaticResource Gold}"/>
@@ -451,9 +464,10 @@
         <Setter Property="SelectionMode" Value="Single"/>
         <Setter Property="RowHeight" Value="30"/>
         <Setter Property="ColumnHeaderHeight" Value="30"/>
-        <Setter Property="MinColumnWidth" Value="100"/>
+        <Setter Property="MinColumnWidth" Value="80"/>
         <Setter Property="EnableRowVirtualization" Value="True"/>
-        <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+        <!-- star-sized columns always fill the width; no horizontal scroll -->
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
         <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
     </Style>
 
