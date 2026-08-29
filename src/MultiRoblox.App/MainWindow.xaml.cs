@@ -261,7 +261,9 @@ public partial class MainWindow : Window
             menu.Items.Add(new Separator());
         }
 
-        var realCategories = Vm.Categories.Where(c => c != MainViewModel.AllCategories).ToList();
+        var realCategories = Vm.Categories
+            .Where(c => c != MainViewModel.AllCategories && c != MainViewModel.NewCategoryItem)
+            .ToList();
 
         // "Add to category" — a Windows-style fly-out submenu. Each category is a checkbox: an account
         // can be in several at once, so clicking toggles membership for every selected account.

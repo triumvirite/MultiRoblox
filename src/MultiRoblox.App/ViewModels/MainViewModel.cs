@@ -161,12 +161,26 @@ public partial class MainViewModel : ObservableObject
 
     public const string NewCategoryItem = "Add new category…";
 
+    /// <summary>The sentinel strings that must never be treated as a real, user-created category.</summary>
+    private static bool IsReservedCategory(string c) =>
+        string.IsNullOrWhiteSpace(c)
+        || c.Equals(AllCategories, StringComparison.OrdinalIgnoreCase)
+        || c.Equals(NewCategoryItem, StringComparison.OrdinalIgnoreCase);
+
     public void RebuildCategories()
     {
+        // One-time cleanup: earlier builds let the "Add new category…" action row be clicked as if it
+        // were a real category, which persisted the sentinel string onto accounts / settings. Strip it.
+        bool cleaned = _svc.Settings.Current.Categories.RemoveAll(IsReservedCategory) > 0;
+        foreach (var a in _svc.Accounts.Accounts)
+            if (a.Categories.RemoveAll(IsReservedCategory) > 0) { _svc.Accounts.Update(a); cleaned = true; }
+        if (cleaned) { _svc.Settings.Save(); Serilog.Log.Information("RebuildCategories: stripped reserved-name categories from stored data"); }
+
         var wanted = new List<string> { AllCategories };
         wanted.AddRange(_svc.Settings.Current.Categories);
         wanted.AddRange(_svc.Accounts.Accounts.SelectMany(a => a.Categories));
-        var distinct = wanted.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var distinct = wanted.Where(c => !string.IsNullOrWhiteSpace(c) && !c.Equals(NewCategoryItem, StringComparison.OrdinalIgnoreCase))
+                             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         _rebuildingCategories = true;
         Categories.Clear();
@@ -189,7 +203,7 @@ public partial class MainViewModel : ObservableObject
     public string? PromptNewCategory()
     {
         var name = Dialogs.Prompt("New category", "Name for the new category:");
-        if (string.IsNullOrWhiteSpace(name) || name.Equals(AllCategories, StringComparison.OrdinalIgnoreCase)) return null;
+        if (string.IsNullOrWhiteSpace(name) || IsReservedCategory(name.Trim())) return null;
         name = name.Trim();
         if (!_svc.Settings.Current.Categories.Contains(name, StringComparer.OrdinalIgnoreCase))
         {
@@ -219,7 +233,7 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Add <paramref name="item"/> to <paramref name="category"/> if it isn't already in it.</summary>
     public void AssignCategory(AccountItemViewModel item, string category)
     {
-        if (string.IsNullOrWhiteSpace(category) || category == AllCategories) return;
+        if (IsReservedCategory(category)) return;
         if (!item.Model.Categories.Any(c => c.Equals(category, StringComparison.OrdinalIgnoreCase)))
         {
             item.Model.Categories.Add(category);
