@@ -24,8 +24,8 @@
         <!-- Per-item context menu for the sidebar category list. Kept as a non-shared resource so
              each ComboBoxItem gets its own instance; a code-behind menu would steal capture and
              collapse the ComboBox dropdown with it. -->
-        <ContextMenu x:Key="CategoryItemMenu" x:Shared="False">
-            <MenuItem Header="Remove category" Click="RemoveCategoryMenuItem_Click"/>
+        <ContextMenu x:Key="CategoryItemMenu" x:Shared="False" Opened="CategoryItemMenu_Opened">
+            <MenuItem Click="RemoveCategoryMenuItem_Click"/>
         </ContextMenu>
 
         <!-- join-mode toggle buttons: accent fill when their mode is active -->

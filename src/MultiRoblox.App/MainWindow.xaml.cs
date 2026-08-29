@@ -85,6 +85,13 @@ public partial class MainWindow : Window
 
     // ---------- sidebar category list: right-click to remove ----------
 
+    private void CategoryItemMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu { PlacementTarget: ComboBoxItem { DataContext: string cat } } menu) return;
+        if (menu.Items.Count > 0 && menu.Items[0] is MenuItem mi)
+            mi.Header = $"Remove \"{cat}\" category";
+    }
+
     private void RemoveCategoryMenuItem_Click(object sender, RoutedEventArgs e)
     {
         // sender (MenuItem) -> its ContextMenu -> PlacementTarget is the ComboBoxItem that was right-clicked
