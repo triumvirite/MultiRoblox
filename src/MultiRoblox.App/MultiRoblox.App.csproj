@@ -21,6 +21,7 @@
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\ingame.png" />
+    <Resource Include="Assets\description.png" />
   </ItemGroup>
 
   <!-- `dotnet publish -c Release` => one self-contained MultiRoblox.exe, no flags needed -->

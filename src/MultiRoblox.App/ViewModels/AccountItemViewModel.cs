@@ -69,8 +69,12 @@ public partial class AccountItemViewModel : ObservableObject
 
     partial void OnLabelChanged(string value) => OnPropertyChanged(nameof(ListLabel));
 
+    /// <summary>Has a non-empty description — drives the yellow tint on the row's description icon.</summary>
+    public bool HasNote => !string.IsNullOrWhiteSpace(Note);
+
     partial void OnNoteChanged(string value)
     {
+        OnPropertyChanged(nameof(HasNote));
         if (Model.Note == value) return;
         Model.Note = value;
         Persist?.Invoke();
@@ -132,6 +136,7 @@ public partial class AccountItemViewModel : ObservableObject
         Alias = Model.Alias;
         Note = Model.Note;
         OnPropertyChanged(nameof(ListLabel));
+        OnPropertyChanged(nameof(HasNote));
         OnPropertyChanged(nameof(Categories));
         OnPropertyChanged(nameof(CategoriesText));
         NotifyStatus();

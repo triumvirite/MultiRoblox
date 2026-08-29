@@ -179,7 +179,7 @@
                             <Grid Margin="4,2"
                                   ToolTipService.InitialShowDelay="0" ToolTipService.BetweenShowDelay="0"
                                   ToolTipService.ShowDuration="120000" ToolTipService.Placement="Right"
-                                  ToolTipService.ShowOnDisabled="True">
+                                  ToolTipService.HorizontalOffset="10" ToolTipService.ShowOnDisabled="True">
                                 <Grid.Style>
                                     <Style TargetType="Grid">
                                         <!-- hover shows the account's description to the right, instantly; none if empty -->
@@ -197,6 +197,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid Width="18" Height="18" VerticalAlignment="Center">
                                     <!-- signed-in / not-checked: a coloured dot -->
@@ -218,6 +219,30 @@
                                     <TextBlock x:Name="Sub" Text="{Binding StatusText}" FontSize="12"
                                                TextTrimming="CharacterEllipsis" Foreground="{DynamicResource SubtleText}"/>
                                 </StackPanel>
+
+                                <!-- edit-description icon: yellow when a description exists, else subtle grey -->
+                                <Button Grid.Column="2" VerticalAlignment="Center" Margin="6,0,2,0" Padding="2"
+                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                        SnapsToDevicePixels="True" UseLayoutRounding="True"
+                                        Click="DescriptionIcon_Click" ToolTip="Edit description">
+                                    <Rectangle Width="20" Height="20" SnapsToDevicePixels="True"
+                                               RenderOptions.BitmapScalingMode="HighQuality">
+                                        <Rectangle.OpacityMask>
+                                            <ImageBrush ImageSource="pack://application:,,,/Assets/description.png"
+                                                        Stretch="Uniform"/>
+                                        </Rectangle.OpacityMask>
+                                        <Rectangle.Style>
+                                            <Style TargetType="Rectangle">
+                                                <Setter Property="Fill" Value="{DynamicResource SubtleText}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasNote}" Value="True">
+                                                        <Setter Property="Fill" Value="{DynamicResource Gold}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Rectangle.Style>
+                                    </Rectangle>
+                                </Button>
                             </Grid>
                             <DataTemplate.Triggers>
                                 <DataTrigger Binding="{Binding StatusKind}" Value="InGame">

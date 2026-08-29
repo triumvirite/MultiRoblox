@@ -271,7 +271,8 @@ public partial class MainWindow : Window
     private void AccountList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _dragStart = e.GetPosition(null);
-        _dragItem = _menuOpen ? null : ItemUnder(e.OriginalSource);
+        bool onButton = FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null;
+        _dragItem = (_menuOpen || onButton) ? null : ItemUnder(e.OriginalSource);
     }
 
     private void AccountList_MouseMove(object sender, MouseEventArgs e)
@@ -296,6 +297,8 @@ public partial class MainWindow : Window
 
     private void AccountList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
+        // a click on the row's own buttons (e.g. the description icon) is not a row double-click
+        if (FindAncestor<Button>(e.OriginalSource as DependencyObject) is not null) return;
         if (ItemUnder(e.OriginalSource) is not { } acct) return;
 
         if (acct.NeedsReLogin)
@@ -312,19 +315,48 @@ public partial class MainWindow : Window
     {
         if (_dragItem is null) { e.Effects = DragDropEffects.None; return; }
         e.Effects = DragDropEffects.Move;
-
-        var over = ItemUnder(e.OriginalSource);
-        int from = Vm.Accounts.IndexOf(_dragItem);
-        int to = over is null ? Vm.Accounts.Count - 1 : Vm.Accounts.IndexOf(over);
-        if (from >= 0 && to >= 0 && from != to)
-            Vm.Accounts.Move(from, to);   // live translucent preview: the row appears at the drop slot
         e.Handled = true;
+
+        int from = Vm.Accounts.IndexOf(_dragItem);
+        if (from < 0) return;
+
+        // Only reorder once the cursor pushes into the outer 40% of an adjacent row — the middle 20%
+        // is a dead zone, so a small wobble over a neighbour doesn't swap it. One step per event.
+        const double edge = 0.40;
+        double y = e.GetPosition(AccountList).Y;
+
+        if (from + 1 < Vm.Accounts.Count
+            && AccountList.ItemContainerGenerator.ContainerFromItem(Vm.Accounts[from + 1]) is FrameworkElement below)
+        {
+            double top = below.TranslatePoint(new Point(0, 0), AccountList).Y;
+            if (y > top + below.ActualHeight * (1 - edge)) { Vm.Accounts.Move(from, from + 1); return; }
+        }
+
+        if (from - 1 >= 0
+            && AccountList.ItemContainerGenerator.ContainerFromItem(Vm.Accounts[from - 1]) is FrameworkElement above)
+        {
+            double top = above.TranslatePoint(new Point(0, 0), AccountList).Y;
+            if (y < top + above.ActualHeight * edge) Vm.Accounts.Move(from, from - 1);
+        }
     }
 
     private void AccountList_Drop(object sender, DragEventArgs e)
     {
         if (_dragItem is not null) _dragItem.IsDragging = false;
         Vm.PersistOrder();
+    }
+
+    private void DescriptionIcon_Click(object sender, RoutedEventArgs e)
+    {
+        e.Handled = true;   // don't let the click bubble into row drag / double-click handling
+        if ((sender as FrameworkElement)?.DataContext is AccountItemViewModel acct)
+            PromptDescription(acct);
+    }
+
+    private static void PromptDescription(AccountItemViewModel acct)
+    {
+        var v = Services.Dialogs.Prompt("Description", $"Description for {acct.Label}:", acct.Note);
+        if (v is not null) acct.Note = v;
     }
 
     private AccountItemViewModel? ItemUnder(object source) =>
@@ -380,12 +412,8 @@ public partial class MainWindow : Window
                 });
             menu.Items.Add(new MenuItem
             {
-                Header = "Set description…",
-                Command = new SimpleCommand(() =>
-                {
-                    var v = Services.Dialogs.Prompt("Description", $"Description for {one.Label}:", one.Note);
-                    if (v is not null) one.Note = v;
-                }),
+                Header = string.IsNullOrWhiteSpace(one.Note) ? "Set description…" : "Edit description…",
+                Command = new SimpleCommand(() => PromptDescription(one)),
             });
             menu.Items.Add(new Separator());
         }
