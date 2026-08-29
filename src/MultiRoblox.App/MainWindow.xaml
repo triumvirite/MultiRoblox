@@ -535,6 +535,7 @@
                             <Button Content="{Binding FavoriteQuickJoinText}" Margin="8,0,0,0" Command="{Binding SetQuickJoinFromFavoriteCommand}"/>
                             <Button Content="Remove" Margin="8,0,0,0" Style="{StaticResource DangerButton}" Command="{Binding RemoveFavoriteCommand}"/>
                         </StackPanel>
+                        <Grid>
                         <ListBox ItemsSource="{Binding Favorites}" SelectedItem="{Binding SelectedFavorite}"
                                  Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                  MouseDoubleClick="Favorite_DoubleClick">
@@ -553,6 +554,12 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
+                        <TextBlock Margin="16" TextWrapping="Wrap" TextAlignment="Center"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                                   Foreground="{DynamicResource SubtleText}"
+                                   Visibility="{Binding HasNoFavorites, Converter={StaticResource BoolVis}}"
+                                   Text="No favorited games yet. Switch to Manual, enter a place ID or game link, and press &#x2605; Favorite to add one here."/>
+                        </Grid>
                     </DockPanel>
 
                     <!-- Recents -->

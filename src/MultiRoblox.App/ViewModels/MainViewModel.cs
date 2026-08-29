@@ -81,6 +81,9 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<FavoriteGame> Favorites { get; } = new();
     [ObservableProperty] private FavoriteGame? _selectedFavorite;
 
+    // Drives the "no favorites yet" hint shown in the Favorites list.
+    public bool HasNoFavorites => Favorites.Count == 0;
+
     public ObservableCollection<RecentGame> Recents { get; } = new();
     [ObservableProperty] private RecentGame? _selectedRecent;
 
@@ -638,6 +641,7 @@ public partial class MainViewModel : ObservableObject
         Favorites.Clear();
         foreach (var f in _svc.Settings.Current.Favorites.OrderBy(f => f.Name))
             Favorites.Add(f);
+        OnPropertyChanged(nameof(HasNoFavorites));
     }
 
     // Favoriting / setting Quick Join only needs a valid place id — it uses any account just to look
