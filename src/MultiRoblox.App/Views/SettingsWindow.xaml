@@ -6,14 +6,21 @@
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}" Icon="/Assets/app.ico">
     <DockPanel Margin="16">
         <Grid DockPanel.Dock="Bottom" Margin="0,14,0,0">
-            <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left">
                 <Hyperlink NavigateUri="https://github.com/triumvirite/MultiRoblox"
                            RequestNavigate="Repo_RequestNavigate"
                            Foreground="{DynamicResource LinkText}" TextDecorations="Underline">
                     GitHub repository
                 </Hyperlink>
             </TextBlock>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <TextBlock Grid.Column="1" x:Name="VersionText" VerticalAlignment="Center" HorizontalAlignment="Center"
+                       Style="{StaticResource Subtle}"/>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Save" Style="{StaticResource AccentButton}" Click="Save_Click" Width="90"/>
                 <Button Content="Cancel" Margin="8,0,0,0" Click="Cancel_Click" Width="90"/>
             </StackPanel>

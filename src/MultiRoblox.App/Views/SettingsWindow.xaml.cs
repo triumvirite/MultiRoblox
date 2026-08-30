@@ -18,6 +18,7 @@ public partial class SettingsWindow : Window
         _svc = svc;
         InitializeComponent();
         DataPathText.Text = AppPaths.Root;
+        VersionText.Text = $"Version {UpdateService.CurrentVersion.ToString(3)}";
         _originalTheme = svc.Settings.Current.ThemeName;
 
         var s = svc.Settings.Current;
